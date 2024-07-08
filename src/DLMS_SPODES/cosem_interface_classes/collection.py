@@ -1550,6 +1550,27 @@ class Collection:
                         ret[list_type.logical_name].add(int(attr_access.attribute_id))
         return ret
 
+    def get_profile_s_u(self,
+                        obj: ProfileGeneric,
+                        mask: set[int] = None
+                        ) -> list[cdt.ScalUnitType | None]:
+        """return container of scaler_units if possible, mask: position number in capture_objects"""
+        res: list[cdt.ScalUnitType | None] = list()
+        for i, obj_def in enumerate(obj.capture_objects):
+            obj_def: structs.CaptureObjectDefinition
+            if mask and i not in mask:
+                continue
+            s_u = None
+            try:
+                s_u = self.get_scaler_unit(
+                    obj=self.get_object(obj_def.logical_name),
+                    par=bytes([int(obj_def.attribute_index)]))
+            except ic.EmptyAttribute as e:
+                logger.error(F"Can't fill Scaler and Unit for {get_name(obj_def.logical_name)}: {e}")
+            finally:
+                res.append(s_u)
+        return res
+
     def copy_obj_attr_values_from(self, other: InterfaceClass) -> bool:
         """ copy all attributes value from other and return bool result """
         try:

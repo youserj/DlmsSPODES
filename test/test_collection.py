@@ -573,3 +573,16 @@ class TestType(unittest.TestCase):
         print(F"{collection.get_unit.cache_info()=}")
         print(F"{rep_count=}")
 
+    def test_get_profile_s_u(self):
+        type_ = "4d324d5f31"
+        ver = "1.5.7"
+        man = b"KPZ"
+        col = collection.get(
+            m=man,
+            t=cdt.OctetString(type_),
+            ver=AppVersion.from_str(ver))
+        res = col.get_profile_s_u(
+            obj=col.get_object("1.0.99.2.0.255"),
+            mask=None
+        )
+        print(res)
