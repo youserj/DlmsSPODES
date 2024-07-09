@@ -12,9 +12,10 @@ class ControlMode(cdt.Enum, elements=tuple(chain(range(7), range(129, 135)))):
     """ Configures the behaviour of the disconnect control object for all triggers. Local disconnection is always possible.
     To suppress local disconnection, the corresponding trigger must be inhibited. """
 
-    def get_letters(self) -> str:
+    @staticmethod
+    def get_letters(value: int) -> str:
         """return transition litters"""
-        match int(self):
+        match value:
             case 0:   return ""
             case 1:   return "bcfgde"
             case 2:   return "bcfgae"
@@ -28,7 +29,7 @@ class ControlMode(cdt.Enum, elements=tuple(chain(range(7), range(129, 135)))):
             case 132: return "bcma"
             case 133: return "bcmak"
             case 134: return "bcmsdep"
-            case _:   raise ValueError(F"unknown {self=}")
+            case _:   raise ValueError(F"unknown {value=}")
 
 
 class OutputState(cdt.Boolean):

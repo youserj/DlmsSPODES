@@ -245,34 +245,6 @@ class ProfileGeneric(ic.COSEMInterfaceClasses):
         """ get objects of current buffer container """
         return [self.collection.get(obj_def.logical_name.contents) for obj_def in self.buffer_capture_objects]
 
-    # TODO: Remove by set it in CaptureObjects.append
-    def get_scaler_units_profile(self) -> list[cdt.ScalUnitType | None]:
-        """ get container of possibles scalers and units from current or scaler_units profiles """
-        result: list[cdt.ScalUnitType | None] = list()
-        if isinstance(self.scaler_profile_key, bytes):
-            scaler_profile = self.collection.get_object(self.scaler_profile_key)
-            if not isinstance(scaler_profile.buffer, cdt.Array):
-                raise ValueError(F'Загрузите буфер {scaler_profile}. Должен присутствовать в файле конфигурации')
-            if len(scaler_profile.buffer) == 0:
-                raise ValueError(F'Buffer of {scaler_profile} is empty')
-            else:
-                unit_scaler_profile = scaler_profile.buffer[0]
-                for scaler_unit, capture_object in zip(unit_scaler_profile, self.capture_objects):
-                    for buffer_capture_object in self.buffer_capture_objects:
-                        if capture_object == buffer_capture_object:
-                            match scaler_unit:
-                                case cdt.ScalUnitType(): result.append(scaler_unit)
-                                case _:                  result.append(None)
-                            break
-        else:
-            for definition in self.buffer_capture_objects:
-                definition: structs.CaptureObjectDefinition
-                obj = self.collection.get_object(definition)
-                match obj, definition.attribute_index.decode():
-                    case Register(), 2: result.append(obj.scaler_unit)
-                    case _:             result.append(None)
-        return result
-
     # todo remove it
     def get_index_with_attributes(self, in_init_order: bool = False) -> Iterator[tuple[int, cdt.CommonDataType | None]]:
         """ override common method """
