@@ -284,6 +284,11 @@ class SPODES3ReactivePowerEvent(DataDynamic):
     A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ReactivePowerEventValues),
 
 
+class SPODES3(DataDynamic):
+    """СТО_34.01-5.1-006-2019v3 Д.10 События по превышению реактивной мощности"""
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ReactivePowerEventValues),
+
+
 class PowerQuality2EventValues(cdt.ReportMixin, cdt.LongUnsigned):
     def get_report(self) -> cdt.Report:
         return cdt.Report(ev.power_quality_status_2.get_report(int(self)))
@@ -293,6 +298,26 @@ class SPODES3PowerQuality2Event(DataNotSpecific):
     """СТО_34.01-5.1-006-2019v3 E.1 Статус качества сети (журнал качества сети)"""
     A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=PowerQuality2EventValues),
 
+
+class LoadLockerValue(cdt.ReportMixin, cdt.Unsigned):
+    def get_report(self) -> cdt.Report:
+        match val := int(self):
+            case 0:
+                return cdt.Report(
+                    msg=get_message(F"{val}: $lock$ $turn_off$"),
+                    log=cdt.INFO_LOG)
+            case 1:
+                return cdt.Report(
+                    msg=get_message(F"{val}: $lock$ $turn_on$"),
+                    log=cdt.Log(logging.WARN))
+            case _:
+                return cdt.Report(
+                    msg=get_message(F"{val} unknown state"),
+                    log=cdt.Log(logging.ERROR))
+
+class SPODES3LoadLocker(DataStatic):
+    """СТО 34.01-5.1-006-2023 E7. Блокиратор реле нагрузки"""
+    A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=LoadLockerValue),
 
 class PowerQuality1EventValues(cdt.ReportMixin, cdt.LongUnsigned):
     def get_report(self) -> cdt.Report:

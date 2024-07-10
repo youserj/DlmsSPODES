@@ -586,3 +586,16 @@ class TestType(unittest.TestCase):
             mask=None
         )
         print(res)
+
+    def test_Spodes_locker_obj(self):
+        type_ = "4d324d5f31"
+        ver = "1.6.2"
+        man = b"KPZ"
+        col = collection.get(
+            m=man,
+            t=cdt.OctetString(type_),
+            ver=AppVersion.from_str(ver))
+        locker = col.get_object("0.0.96.4.3.255")
+        locker.set_attr(2, 0)
+        rep = col.get_report(locker, b'\x02', locker.value)
+        print(locker, rep)
