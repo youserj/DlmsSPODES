@@ -153,8 +153,10 @@ class TestType(unittest.TestCase):
 
     def test_Enum(self):
         value = cdt.Unit(4)
+        value.x = 1
         match value:
-            case cdt.Unit(4): print("ok")
+            case cdt.Unit(4): print(value)
+        self.assertEqual(int(cdt.Unit()), 1, "default init")
 
     def test_integers(self):
         value = impl.integers.Only0(0)

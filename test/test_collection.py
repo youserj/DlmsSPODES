@@ -599,3 +599,17 @@ class TestType(unittest.TestCase):
         locker.set_attr(2, 0)
         rep = col.get_report(locker, b'\x02', locker.value)
         print(locker, rep)
+
+    def test_report_enums(self):
+        type_ = "4d324d5f31"
+        ver = "1.6.2"
+        man = b"KPZ"
+        col = collection.get(
+            m=man,
+            t=cdt.OctetString(type_),
+            ver=AppVersion.from_str(ver))
+        clock_obj = col.get_object('0.0.1.0.0.255')
+        clock_obj.set_attr(9, 3)
+        print(clock_obj.clock_base)
+        print(col.get_report(clock_obj, b'\x09', clock_obj.clock_base))
+

@@ -7,7 +7,7 @@ from collections import deque
 from math import log, ceil
 import datetime
 import logging
-from ..config_parser import config
+from ..config_parser import config, get_values
 from .. import config_parser
 
 
@@ -1800,11 +1800,13 @@ class Long64Unsigned(Digital, SimpleDataType):
     LENGTH = 8
 
 
-class Enum(SimpleDataType, ABC):
+class Enum(ReportMixin, SimpleDataType, ABC):
     """ The elements of the enumeration type are defined in the “Attribute description” section of a COSEM interface class specification """
     contents: bytes
     TAG = TAG(b'\x16')
-    ELEMENTS: dict[bytes, str] = None
+    ELEMENTS: dict[bytes, str] = None  # todo: remove after removing validate_from
+    NAMES: dict[int, str] = None
+    __slots__ = ("contents",)
     __match_args__ = ('value2', )
 
     def __init__(self, value: bytes | bytearray | str | int | Self = None):
@@ -1820,8 +1822,6 @@ class Enum(SimpleDataType, ABC):
             case int():                                                   self.contents = self.from_int(value)
             case self.__class__():                                        self.contents = value.contents
             case _:                                                       raise ValueError(F'Unknown type for {self.__class__.__name__} with value {value}<{value.__class__}>')
-        if self.ELEMENTS is not None:
-            self.validation()
 
     def from_int(self, value: int) -> bytes:
         try:
@@ -1833,24 +1833,14 @@ class Enum(SimpleDataType, ABC):
         if value.isdigit():
             return self.from_int(int(value))
         else:
-            for enum in self.ELEMENTS:
-                if value == self.ELEMENTS[enum]:
-                    return enum
-            else:
-                raise ValueError(F'Error create {self.__class__.__name__} with value {value}')
+            raise ValueError(F'Error create {self.__class__.__name__} with value {value}')
 
     def from_none(self):
         """first key value"""
-        return next(iter(self.ELEMENTS))
-
-    def validation(self):
-        """ check value after inited. Maybe override """
-        try:
-            if self.contents not in self.ELEMENTS.keys():
-                raise ValueError(F'Enum {self.__class__.__name__} has only {",".join([key.hex() for key in self.ELEMENTS])} key, '
-                                 F'but got {self.contents[:1].hex()}')
-        except AttributeError:
-            logger.error("default enum values don't set. Look why...")
+        if len(self.NAMES) != 0:
+            return next(iter(self.NAMES)).to_bytes(1, "big")
+        else:
+            return b'\x00'
 
     def __init_subclass__(cls, **kwargs):
         """initiate ELEMENTS name use config.toml"""
@@ -1861,19 +1851,15 @@ class Enum(SimpleDataType, ABC):
             except KeyError as e:
                 c = dict()
                 logger.warning(F"not find {e} in config.toml")
+            cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "enum_name", F"{cls.__name__}")) else None
             cls.ELEMENTS = {el if issubclass(cls, FlagMixin) else el.to_bytes(1, "big"): c.get(el, F"{cls.__name__}({el})") for el in elements}
 
     @property
     def encoding(self) -> bytes:
         return self.TAG + self.contents
 
-    def __setattr__(self, key, value):
-        match key:
-            case 'ELEMENTS' as prop: raise ValueError(F"Don't support set {prop}")
-            case _: super().__setattr__(key, value)
-
     def __str__(self):
-        return self.ELEMENTS[self.contents]
+        return str(int(self))   #self.ELEMENTS[self.contents]
 
     @property
     def value(self) -> str:
@@ -1899,7 +1885,7 @@ class Enum(SimpleDataType, ABC):
     @classmethod
     def get_values(cls) -> list[str]:
         """ TODO: """
-        return [values_dict for values_dict in cls.ELEMENTS.values()]
+        return [cls(k).get_report().msg for k in cls.NAMES.keys()]
 
     def decode(self) -> int:
         """ return the build in integer type """
@@ -1918,7 +1904,16 @@ class Enum(SimpleDataType, ABC):
         """ nothing do it. TODO: may be to default? """
 
     def __len__(self):
-        return len(self.ELEMENTS)
+        return len(self.NAMES)
+
+    def get_report(self) -> Report:
+        l = INFO_LOG
+        msg = F"({self})"
+        if name := self.NAMES.get(int(self)):
+            msg += F" {name}"
+        else:
+            l = Log(logging.WARN, "unknown value")
+        return Report(msg, log=l)
 
 
 class Float32(Float, SimpleDataType):
