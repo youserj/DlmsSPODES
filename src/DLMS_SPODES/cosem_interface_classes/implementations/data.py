@@ -66,7 +66,7 @@ class OctetStringDateTime(DataDynamic):
     A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=cst.OctetStringDateTime),
 
 
-class OpeningBodyUnsigned(cdt.ReportMixin, cdt.Unsigned):
+class OpeningBodyUnsigned(cdt.ReportMixin, cdt.Unsigned):  # todo: make as cdt.FlagEnum
     def get_report(self) -> cdt.Report:
         """ СПОДЭСv.3 Е.12.5"""
         match int(self) & 0b1:
@@ -83,7 +83,7 @@ class OpeningBody(DataDynamic):
     A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=OpeningBodyUnsigned),
 
 
-class OpeningCoverUnsigned(cdt.ReportMixin, cdt.Unsigned):
+class OpeningCoverUnsigned(cdt.ReportMixin, cdt.Unsigned):  # todo: make as cdt.FlagEnum
     def get_report(self) -> cdt.Report:
         """ СПОДЭСv.3 Е.12.5"""
         match int(self) & 0b1:
@@ -100,7 +100,7 @@ class OpeningCover(DataDynamic):
     A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=OpeningCoverUnsigned),
 
 
-class ExposureToFieldUnsigned(cdt.ReportMixin, cdt.Unsigned):
+class ExposureToFieldUnsigned(cdt.ReportMixin, cdt.Unsigned):  # todo: make as cdt.FlagEnum
     def get_report(self) -> cdt.Report:
         if (value := (int(self) & 0b101)) == 0:
             return cdt.Report(get_message("$normal$"), log=cdt.INFO_LOG)
@@ -123,7 +123,7 @@ class ExposureToHSField(DataDynamic):
     A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ExposureToFieldUnsigned),
 
 
-class SealUnsigned(cdt.ReportMixin, cdt.Unsigned):
+class SealUnsigned(cdt.ReportMixin, cdt.Unsigned):  # todo: make as cdt.FlagEnum??
     def get_report(self) -> cdt.Report:
         def get_name(value: int):
             """ СПОДЭСv.3 Е.12.5"""
@@ -138,7 +138,7 @@ class SealUnsigned(cdt.ReportMixin, cdt.Unsigned):
 
 
 class SealStatus(DataDynamic):
-    """ RU. 0.0.96.51.5.255. СТО_34.01-5.1-006-2019v3. E 12.1 """
+    """ RU. 0.0.96.51.5.255. СТО_34.01-5.1-006-2019v3. E 12.5 """
     A_ELEMENTS = DataDynamic.A_ELEMENTS[0].get_change(data_type=SealUnsigned),
 
 
@@ -176,7 +176,7 @@ class ChannelNumberValue(cdt.ReportMixin, cdt.Unsigned):
         self.set((int(self) & 0b0001_1111) | (value << 3))
 
     def get_report(self) -> cdt.Report:
-        return cdt.Report(F"Номер канала связи: {self.channel.name}, Тип интерфейса: {self.interface.name}")
+        return cdt.Report(F"({int(self)}) Номер канала связи: {self.channel.name}, Тип интерфейса: {self.interface.name}")
 
 
 class CommunicationPortParameter(Data):
@@ -299,21 +299,21 @@ class SPODES3PowerQuality2Event(DataNotSpecific):
     A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=PowerQuality2EventValues),
 
 
-class LoadLockerValue(cdt.ReportMixin, cdt.Unsigned):
+class LoadLockerValue(cdt.IntegerEnum, cdt.Unsigned):
     def get_report(self) -> cdt.Report:
         match val := int(self):
             case 0:
                 return cdt.Report(
-                    msg=get_message(F"{val}: $lock$ $turn_off$"),
+                    msg=get_message(F"({val}) $lock$ $turn_off$"),
                     log=cdt.INFO_LOG)
             case 1:
                 return cdt.Report(
-                    msg=get_message(F"{val}: $lock$ $turn_on$"),
+                    msg=get_message(F"({val}) $lock$ $turn_on$"),
                     log=cdt.Log(logging.WARN))
             case _:
                 return cdt.Report(
-                    msg=get_message(F"{val} unknown state"),
-                    log=cdt.Log(logging.ERROR))
+                    msg=get_message(F"({val})"),
+                    log=cdt.Log(logging.ERROR, "unknown state"))
 
 class SPODES3LoadLocker(DataStatic):
     """СТО 34.01-5.1-006-2023 E7. Блокиратор реле нагрузки"""

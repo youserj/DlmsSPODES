@@ -16,23 +16,23 @@ class PSStatus(cdt.Enum, elements=tuple(range(5))):
     """ Indicates the packet switched status of the modem. """
 
 
-class SignalQuality(cdt.ReportMixin, cdt.Unsigned):
+class SignalQuality(cdt.IntegerEnum, cdt.Unsigned):
     """for string report"""
     def get_report(self) -> cdt.Report:
-        value = int(self)
-        if value == 0:
-            return cdt.Report("–113 dBm $or$ $less$(0)")
-        elif value == 1:
-            return cdt.Report(F"–111 dBm(1)")
-        elif value < 31:
-            return cdt.Report(F"{-109+(value-2)*2} dBm({value})")
-        elif value == 31:
-            return cdt.Report(get_message("–51 dBm $or$ $greater$(31)"))
-        elif value == 99:
-            return cdt.Report(get_message("$not_known_or_not_detectable$"))
+        val = int(self)
+        if val == 0:
+            return cdt.Report(get_message(F"({val}) –113 dBm $or$ $less$(0)"))
+        elif val == 1:
+            return cdt.Report(F"({val}) –111 dBm")
+        elif val < 31:
+            return cdt.Report(get_message(F"({val}) {-109+(val-2)*2} dBm({val})"))
+        elif val == 31:
+            return cdt.Report(get_message(F"({val}) –51 dBm $or$ $greater$"))
+        elif val == 99:
+            return cdt.Report(get_message(F"({val}) $not_known_or_not_detectable$"))
         else:
             return cdt.Report(
-                msg=F"wrong {value=}",
+                msg=F"({val})",
                 log=cdt.Log(logging.WARN, "unknown value"))
 
 

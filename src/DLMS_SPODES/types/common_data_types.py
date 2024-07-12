@@ -47,6 +47,10 @@ class ReportMixin(ABC):
         """custom string represent"""
 
 
+class IntegerEnum(ReportMixin, ABC):
+    """value with represent __int__ to string"""
+
+
 # TODO: rewrite with Cython
 def separate(value: str, pattern: str, max_sep: int) -> tuple[str, list[str]]:
     """ separating string to container by pattern. Use in Date and Time """
@@ -1800,7 +1804,7 @@ class Long64Unsigned(Digital, SimpleDataType):
 enum_rep = re.compile("\((?P<value>\d{1,3})\).+")
 
 
-class Enum(ReportMixin, SimpleDataType, ABC):
+class Enum(IntegerEnum, SimpleDataType, ABC):
     """ The elements of the enumeration type are defined in the “Attribute description” section of a COSEM interface class specification """
     contents: bytes
     TAG = TAG(b'\x16')
