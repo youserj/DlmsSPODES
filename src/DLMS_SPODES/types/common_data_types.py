@@ -1,4 +1,5 @@
 from itertools import chain
+import re
 from dataclasses import dataclass, field
 from struct import pack, unpack
 from abc import ABC, abstractmethod
@@ -262,11 +263,6 @@ def get_instance_and_pdu_from_value(value: bytes | bytearray) -> tuple[CommonDat
 
 class SimpleDataType(CommonDataType, ABC):
 
-    def __setattr__(self, key, value):
-        match key:
-            case 'contents' as prop if hasattr(self, 'contents'): raise ValueError(F"Don't support set {prop}")
-            case _: super().__setattr__(key, value)
-
     def validate_from(self, value: str, cursor_position: int) -> tuple[str, int]:
         """ return validated value and cursor position """
         type(self)(value=value)
@@ -279,7 +275,8 @@ class SimpleDataType(CommonDataType, ABC):
         new_value = self._new_instance(value)
         if hasattr(self, 'cb_preset'):
             self.cb_preset(new_value)
-        self.__dict__['contents'] = new_value.contents
+        # self.__dict__['contents'] = new_value.contents
+        self.contents = new_value.contents
         if hasattr(self, 'cb_post_set'):
             self.cb_post_set()
 
@@ -1800,6 +1797,9 @@ class Long64Unsigned(Digital, SimpleDataType):
     LENGTH = 8
 
 
+enum_rep = re.compile("\((?P<value>\d{1,3})\).+")
+
+
 class Enum(ReportMixin, SimpleDataType, ABC):
     """ The elements of the enumeration type are defined in the “Attribute description” section of a COSEM interface class specification """
     contents: bytes
@@ -1832,6 +1832,8 @@ class Enum(ReportMixin, SimpleDataType, ABC):
     def from_str(self, value: str) -> bytes:
         if value.isdigit():
             return self.from_int(int(value))
+        elif res := enum_rep.search(value):
+            return self.from_int(int(res.group("value")))
         else:
             raise ValueError(F'Error create {self.__class__.__name__} with value {value}')
 
@@ -1851,7 +1853,7 @@ class Enum(ReportMixin, SimpleDataType, ABC):
             except KeyError as e:
                 c = dict()
                 logger.warning(F"not find {e} in config.toml")
-            cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "enum_name", F"{cls.__name__}")) else None
+            cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "enum_name", F"{cls.__name__}")) else dict()
             cls.ELEMENTS = {el if issubclass(cls, FlagMixin) else el.to_bytes(1, "big"): c.get(el, F"{cls.__name__}({el})") for el in elements}
 
     @property

@@ -601,6 +601,7 @@ class TestType(unittest.TestCase):
         print(locker, rep)
 
     def test_report_enums(self):
+        from src.DLMS_SPODES.cosem_interface_classes.association_ln.mechanism_id import MechanismIdElement
         type_ = "4d324d5f31"
         ver = "1.6.2"
         man = b"KPZ"
@@ -612,4 +613,8 @@ class TestType(unittest.TestCase):
         clock_obj.set_attr(9, 3)
         print(clock_obj.clock_base)
         print(col.get_report(clock_obj, b'\x09', clock_obj.clock_base))
-
+        ass_obj = col.get_object("0.0.40.0.1.255")
+        print(ass_obj.authentication_mechanism_name.authentication_mechanism_name_element)
+        m_id = MechanismIdElement(0)
+        m_id.set('2')
+        print(F"{m_id=}")
