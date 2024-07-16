@@ -14,7 +14,7 @@ DLMS_SPODES = ["config.toml"]
 
 [project]
 name = "DLMS_SPODES"
-version = "0.75.2"
+version = "0.75.3"
 authors = [
     {name="Serj Kotilevski", email="youserj@outlook.com"}
 ]
@@ -23,7 +23,7 @@ dependencies = [
 ]
 description="dlms-spodes"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 keywords=["dlms"]
 classifiers = [
     "Programming Language :: Python :: 3",

@@ -1,6 +1,5 @@
-from ..data import Data, ic, cdt, cst, choices, ut
+from ..data import Data, ic, cdt, cst, choices
 from ... import enums as enu
-from .. import events as ev
 from ...types import implementations as impl
 from ...version import AppVersion
 from ...config_parser import get_message
@@ -194,112 +193,91 @@ class AnyDateTime(DataDynamic):
     A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=choices.any_date_time),
 
 
-class VoltageEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.voltage_events.get_report(int(self)))
+class SPODES3VoltageEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 
 class SPODES3VoltageEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.2 События, связанные с напряжением"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=VoltageEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3VoltageEventValues),
 
 
-class CurrentEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.current_events.get_report(int(self)))
-
+class SPODES3CurrentEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3CurrentEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.3 События, связанные с током"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=CurrentEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3CurrentEventValues),
 
 
-class CommutationEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.commutation_events.get_report(int(self)))
-
+class SPODES3CommutationEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3CommutationEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.4 События, связанные с вкл./выкл. ПУ, коммутации реле нагрузки"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=CommutationEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3CommutationEventValues),
 
 
-class ProgrammingEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.programming_events.get_report(int(self)))
-
+class SPODES3ProgrammingEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3ProgrammingEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.5 События программирования параметров ПУ"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ProgrammingEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3ProgrammingEventValues),
 
 
-class ExternalEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.external_impact_events.get_report(int(self)))
-
+class SPODES3ExternalEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3ExternalEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.6 События внешних воздействий"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ExternalEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3ExternalEventValues),
 
 
-class CommunicationEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.communication_events.get_report(int(self)))
-
+class SPODES3CommunicationEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3CommunicationEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.7 Коммуникационные события"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=CommunicationEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3CommunicationEventValues),
 
 
-class AccessEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.access_events.get_report(int(self)))
-
+class SPODES3AccessEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3AccessEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.8 События контроля доступа"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=AccessEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3AccessEventValues),
 
 
-class SelfDiagnosticEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.self_diagnostics_events.get_report(int(self)))
-
+class SPODES3SelfDiagnosticEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3SelfDiagnosticEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.9 Коды событий для журнала самодиагностики"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SelfDiagnosticEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3SelfDiagnosticEventValues),
 
 
-class ReactivePowerEventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.reactive_power_events.get_report(int(self)))
-
+class SPODES3ReactivePowerEventValues(cdt.IntegerEnum, cdt.LongUnsigned):
+    pass
 
 class SPODES3ReactivePowerEvent(DataDynamic):
     """СТО_34.01-5.1-006-2019v3 Д.10 События по превышению реактивной мощности"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ReactivePowerEventValues),
+    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=SPODES3ReactivePowerEventValues),
 
 
-class SPODES3(DataDynamic):
-    """СТО_34.01-5.1-006-2019v3 Д.10 События по превышению реактивной мощности"""
-    A_ELEMENTS = DataDynamic.get_attr_element(2).get_change(data_type=ReactivePowerEventValues),
-
-
-class PowerQuality2EventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.power_quality_status_2.get_report(int(self)))
-
+class SPODES3PowerQuality2EventValues(cdt.IntegerFlag, cdt.LongUnsigned):
+    pass
 
 class SPODES3PowerQuality2Event(DataNotSpecific):
     """СТО_34.01-5.1-006-2019v3 E.1 Статус качества сети (журнал качества сети)"""
-    A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=PowerQuality2EventValues),
+    A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=SPODES3PowerQuality2EventValues),
 
 
 class LoadLockerValue(cdt.IntegerEnum, cdt.Unsigned):
+    def __init_subclass__(cls, **kwargs):
+        """not need"""
+
     def get_report(self) -> cdt.Report:
         match val := int(self):
             case 0:
@@ -319,20 +297,18 @@ class SPODES3LoadLocker(DataStatic):
     """СТО 34.01-5.1-006-2023 E7. Блокиратор реле нагрузки"""
     A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=LoadLockerValue),
 
-class PowerQuality1EventValues(cdt.ReportMixin, cdt.LongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.power_quality_status_1.get_report(int(self)))
+class SPODES3PowerQuality1EventValues(cdt.IntegerFlag, cdt.LongUnsigned):
+    pass
 
 
 class SPODES3PowerQuality1Event(DataNotSpecific):
-    """СТО_34.01-5.1-006-2019v3 E.2 Статус качества сети (профиль суточных показаний)"""
-    A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=PowerQuality1EventValues),
+    """СТО_34.01-5.1-006-2019v3 E.1 Статус качества сети (журнал качества сети)"""
+    A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=SPODES3PowerQuality1EventValues),
 
 
 # KPZ implements
-class KPZ1VoltageEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.voltage_events.get_report(int(self)))
+class KPZ1VoltageEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3VoltageEventValues.NAMES
 
 
 class KPZ1SPODES3VoltageEvent(DataStatic):
@@ -340,19 +316,16 @@ class KPZ1SPODES3VoltageEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1VoltageEventValues),
 
 
-class KPZ1CurrentEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.current_events.get_report(int(self)))
-
+class KPZ1CurrentEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3CurrentEventValues.NAMES
 
 class KPZ1SPODES3CurrentEvent(DataStatic):
     """СТО_34.01-5.1-006-2019v3 Д.3 События, связанные с током"""
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1CurrentEventValues),
 
 
-class KPZ1CommutationEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.commutation_events.get_report(int(self)))
+class KPZ1CommutationEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3CommutationEventValues.NAMES
 
 
 class KPZ1SPODES3CommutationEvent(DataStatic):
@@ -360,9 +333,8 @@ class KPZ1SPODES3CommutationEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1CommutationEventValues),
 
 
-class KPZ1ProgrammingEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.programming_events.get_report(int(self)))
+class KPZ1ProgrammingEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3ProgrammingEventValues.NAMES
 
 
 class KPZ1SPODES3ProgrammingEvent(DataStatic):
@@ -370,9 +342,8 @@ class KPZ1SPODES3ProgrammingEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1ProgrammingEventValues),
 
 
-class KPZ1ExternalEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.external_impact_events.get_report(int(self)))
+class KPZ1ExternalEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3ExternalEventValues.NAMES
 
 
 class KPZ1SPODES3ExternalEvent(DataStatic):
@@ -380,9 +351,8 @@ class KPZ1SPODES3ExternalEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1ExternalEventValues),
 
 
-class KPZ1CommunicationEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.communication_events.get_report(int(self)))
+class KPZ1CommunicationEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3CommunicationEventValues.NAMES
 
 
 class KPZ1SPODES3CommunicationEvent(DataStatic):
@@ -390,9 +360,8 @@ class KPZ1SPODES3CommunicationEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1CommunicationEventValues),
 
 
-class KPZ1AccessEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.access_events.get_report(int(self)))
+class KPZ1AccessEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3AccessEventValues.NAMES
 
 
 class KPZ1SPODES3AccessEvent(DataStatic):
@@ -400,9 +369,8 @@ class KPZ1SPODES3AccessEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1AccessEventValues),
 
 
-class KPZ1SelfDiagnosticEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.self_diagnostics_events.get_report(int(self)))
+class KPZ1SelfDiagnosticEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3SelfDiagnosticEventValues.NAMES
 
 
 class KPZ1SPODES3SelfDiagnosticEvent(DataStatic):
@@ -410,9 +378,8 @@ class KPZ1SPODES3SelfDiagnosticEvent(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=KPZ1SelfDiagnosticEventValues),
 
 
-class KPZ1ReactivePowerEventValues(cdt.ReportMixin, cdt.DoubleLongUnsigned):
-    def get_report(self) -> cdt.Report:
-        return cdt.Report(ev.reactive_power_events.get_report(int(self)))  # todo need refactoring
+class KPZ1ReactivePowerEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
+    NAMES = SPODES3ReactivePowerEventValues.NAMES
 
 
 class KPZ1SPODES3ReactivePowerEvent(DataStatic):

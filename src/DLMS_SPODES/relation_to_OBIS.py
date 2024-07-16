@@ -2,8 +2,8 @@
 principles (see Clause 4 EN 62056-62:2007), the identification of real data items is specified in IEC 62056-61. The following clauses define the
 usage of those definitions in the COSEM environment. All codes, which are not explicitly listed, but outside the manufacturer specific range are
 reserved for future use."""
-from __future__ import annotations
 from functools import lru_cache
+from dataclasses import dataclass
 from . import settings
 from .types import cosem_service_types as cst
 from .cosem_interface_classes import overview

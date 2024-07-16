@@ -18,6 +18,9 @@ class PSStatus(cdt.Enum, elements=tuple(range(5))):
 
 class SignalQuality(cdt.IntegerEnum, cdt.Unsigned):
     """for string report"""
+    def __init_subclass__(cls, **kwargs):
+        """not need"""
+
     def get_report(self) -> cdt.Report:
         val = int(self)
         if val == 0:
@@ -25,7 +28,7 @@ class SignalQuality(cdt.IntegerEnum, cdt.Unsigned):
         elif val == 1:
             return cdt.Report(F"({val}) –111 dBm")
         elif val < 31:
-            return cdt.Report(get_message(F"({val}) {-109+(val-2)*2} dBm({val})"))
+            return cdt.Report(get_message(F"({val}) {-109+(val-2)*2} dBm"))
         elif val == 31:
             return cdt.Report(get_message(F"({val}) –51 dBm $or$ $greater$"))
         elif val == 99:

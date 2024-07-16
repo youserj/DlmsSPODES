@@ -47,8 +47,26 @@ class ReportMixin(ABC):
         """custom string represent"""
 
 
+type Message = str
+type Number = int
+
 class IntegerEnum(ReportMixin, ABC):
     """value with represent __int__ to string"""
+    NAMES: dict[Number, Message] = None
+
+    def __init_subclass__(cls, **kwargs):
+        """initiate NAMES name use config.toml"""
+        if not cls.NAMES:
+            cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "enum_name", F"{cls.__name__}")) else dict()
+
+    def get_report(self) -> Report:
+        l = INFO_LOG
+        msg = F"({self})"
+        if name := self.NAMES.get(int(self)):
+            msg += F" {name}"
+        else:
+            l = Log(logging.WARN, "unknown value")
+        return Report(msg, log=l)
 
 
 # TODO: rewrite with Cython
@@ -547,6 +565,32 @@ class Digital(ABC):
 
     def __hash__(self):
         return self.decode()
+
+
+type BitNumber = int
+
+class IntegerFlag(ReportMixin, Digital, ABC):
+    """value with represent __int__ to string"""
+    NAMES: dict[BitNumber, Message] = None
+    """bit number: name"""
+
+    def __init_subclass__(cls, **kwargs):
+        """initiate NAMES name use config.toml"""
+        if not cls.NAMES:
+            cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "flag_name", F"{cls.__name__}")) else dict()
+
+    def get_report(self) -> Report:
+        l = INFO_LOG
+        msg = F"({self})"
+        mask = 0b1
+        val = int(self)
+        flags: list[Message] = list()
+        for i in range(8*self.LENGTH):
+            if (mask & val) and (name := self.NAMES.get(i)):
+                flags.append(name)
+            mask <<= 1
+        msg += F" {" | ".join(flags)}"
+        return Report(msg, log=l)
 
 
 class Float(ABC):
@@ -1849,7 +1893,8 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
             return b'\x00'
 
     def __init_subclass__(cls, **kwargs):
-        """initiate ELEMENTS name use config.toml"""
+        """initiate NAMES name use config.toml"""
+        super().__init_subclass__(**kwargs)
         if not cls.ELEMENTS:
             elements: tuple[int, ...] = kwargs["elements"]
             try:
@@ -1857,7 +1902,6 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
             except KeyError as e:
                 c = dict()
                 logger.warning(F"not find {e} in config.toml")
-            cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "enum_name", F"{cls.__name__}")) else dict()
             cls.ELEMENTS = {el if issubclass(cls, FlagMixin) else el.to_bytes(1, "big"): c.get(el, F"{cls.__name__}({el})") for el in elements}
 
     @property
@@ -1911,15 +1955,6 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
 
     def __len__(self):
         return len(self.NAMES)
-
-    def get_report(self) -> Report:
-        l = INFO_LOG
-        msg = F"({self})"
-        if name := self.NAMES.get(int(self)):
-            msg += F" {name}"
-        else:
-            l = Log(logging.WARN, "unknown value")
-        return Report(msg, log=l)
 
 
 class Float32(Float, SimpleDataType):
