@@ -2325,11 +2325,10 @@ def get_filtered(objects: Iterable[InterfaceClass],
             patterns.extend(k)
     new_list = list()
     for obj in objects:
-        if c_ids and (obj.CLASS_ID not in c_ids):
-            continue
-        if patterns and (obj.logical_name not in patterns):
-            continue
-        new_list.append(obj)
+        if obj.CLASS_ID in c_ids:
+            new_list.append(obj)
+        elif obj.logical_name in patterns:
+            new_list.append(obj)
     return new_list
 
 

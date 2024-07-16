@@ -463,7 +463,7 @@ class TestType(unittest.TestCase):
 
     def test_get_filtered(self):
         type_ = "4d324d5f31"
-        ver = "1.5.7"
+        ver = "1.6.2"
         man = b"KPZ"
         col = collection.get(
             m=man,
@@ -478,6 +478,16 @@ class TestType(unittest.TestCase):
                 keys=(ln_pattern.DEVICE_ID,
                       ln_pattern.PROGRAM_ENTRIES))
         print(res2)
+        res3 = collection.get_filtered(
+            objects=col,
+            keys=(
+                ln_pattern.TARIFFICATION_SCRIPT_TABLE,
+                overview.ClassID.SCHEDULE,
+                overview.ClassID.ACTIVITY_CALENDAR,
+                overview.ClassID.SPECIAL_DAYS_TABLE,
+            )
+        )
+        print(res3)
 
     def test_get_attr_tree(self):
         type_ = "4d324d5f31"
@@ -626,5 +636,5 @@ class TestType(unittest.TestCase):
         vol_ev_obj.set_attr(2, 5)
         print(col.get_report(vol_ev_obj, b'\x02', vol_ev_obj.value))
         vol_ev_obj = col.get_object("0.0.96.5.4.255")
-        vol_ev_obj.set_attr(2, 65535)
+        vol_ev_obj.set_attr(2, 1)
         print(col.get_report(vol_ev_obj, b'\x02', vol_ev_obj.value))
