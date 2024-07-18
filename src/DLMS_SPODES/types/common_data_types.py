@@ -1160,6 +1160,9 @@ class Array(__Array, ComplexDataType):
         """ get element by index """
         return self.values[item]
 
+    def __iter__(self):
+        return iter(self.values)
+
     def get_type(self) -> Type[CommonDataType]:
         return self.TYPE
 

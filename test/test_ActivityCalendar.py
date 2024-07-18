@@ -1,6 +1,7 @@
 import unittest
 from src.DLMS_SPODES.types import cdt, cst, ut
 from src.DLMS_SPODES.cosem_interface_classes import collection
+from src.DLMS_SPODES.cosem_interface_classes import activity_calendar
 from src.DLMS_SPODES.version import AppVersion
 from src.DLMS_SPODES.cosem_interface_classes.overview import ClassID, Version
 from src.DLMS_SPODES import exceptions as exc
@@ -41,3 +42,12 @@ class TestType(unittest.TestCase):
         obj.season_profile_active.set(bytes.fromhex("01 01 02 03 09 07 44 65 66 61 75 6c 74 09 0c ff ff 01 01 ff ff ff ff ff 80 00 00 09 07 44 65 66 61 75 6c 73"))
         obj.season_profile_active.append()
         obj.validate()
+
+    def test_d(self):
+        d_p = activity_calendar.DaySchedule([
+            ("00:00", "0.0.10.0.100.255", 1),
+            ("02:00", "0.0.10.0.100.255", 2),
+            ("01:00", "0.0.10.0.100.255", 3),
+        ])
+        sort = sorted(d_p)
+        print(d_p, sort)

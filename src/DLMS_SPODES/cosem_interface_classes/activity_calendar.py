@@ -1,5 +1,5 @@
 import datetime
-from typing import Callable, Iterator
+from typing import Self
 from . import special_days_table as sdt
 from .__class_init__ import *
 from ..types.implementations import integers
@@ -74,6 +74,9 @@ class DayProfileAction(cdt.Structure):
     start_time: cst.OctetStringTime
     script_logical_name: cst.LogicalName
     script_selector: cdt.LongUnsigned
+
+    def __lt__(self, other: Self):
+        return self.start_time.decode() < other.start_time.decode()
 
 
 # TODO: make unique by start_time
