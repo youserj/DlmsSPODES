@@ -104,7 +104,7 @@ class ObjectListType(arrays.SelectionAccess):
             else:
                 continue
         else:
-            raise ValueError(F"not find in {ln} attribute index: {index}")
+            raise exc.ITEApplication(F"not find method access rules in object_list for {ln.get_report()}:{index}")  # todo: make custom error
 
 
 class AssociatedPartnersType(cdt.Structure):
@@ -494,7 +494,7 @@ class AssociationLN(ic.COSEMInterfaceClasses):
             case pdu.MethodAccess.AUTHENTICATED_ACCESS:
                 if not m_id:
                     m_id = self.authentication_mechanism_name.mechanism_id_element
-                if m_id >= mechanism_id.LOW:
+                if m_id > mechanism_id.NONE:
                     return True
                 else:
                     return False

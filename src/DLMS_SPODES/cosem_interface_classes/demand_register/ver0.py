@@ -7,15 +7,18 @@ class DemandRegister(ic.COSEMInterfaceClasses):
     """DLMS UA 1000-1 Ed 14 4.3.4.Demand register"""
     CLASS_ID = ClassID.DEMAND_REGISTER
     VERSION = Version.V0
-    A_ELEMENTS = (ic.ICAElement("current_average_value", choices.register, classifier=ic.Classifier.DYNAMIC),
-                  ic.ICAElement("last_average_value", choices.register, classifier=ic.Classifier.DYNAMIC),
-                  ic.ICAElement("scaler_unit", cdt.ScalUnitType),
-                  ic.ICAElement("status", choices.extended_register, classifier=ic.Classifier.DYNAMIC),
-                  ic.ICAElement("capture_time", cst.OctetStringDateTime, classifier=ic.Classifier.DYNAMIC),
-                  ic.ICAElement("start_time_current", cst.OctetStringDateTime, classifier=ic.Classifier.DYNAMIC),
-                  ic.ICAElement("period", cdt.DoubleLongUnsigned, min=1),
-                  ic.ICAElement("number_of_periods", cdt.LongUnsigned, min=1, default=1))
-    M_ELEMENTS = ic.ICMElement("reset", integers.Only0),
+    A_ELEMENTS = (
+        ic.ICAElement("current_average_value", choices.register, classifier=ic.Classifier.DYNAMIC),
+        ic.ICAElement("last_average_value", choices.register, classifier=ic.Classifier.DYNAMIC),
+        ic.ICAElement("scaler_unit", cdt.ScalUnitType),
+        ic.ICAElement("status", choices.extended_register, classifier=ic.Classifier.DYNAMIC),
+        ic.ICAElement("capture_time", cst.OctetStringDateTime, classifier=ic.Classifier.DYNAMIC),
+        ic.ICAElement("start_time_current", cst.OctetStringDateTime, classifier=ic.Classifier.DYNAMIC),
+        ic.ICAElement("period", cdt.DoubleLongUnsigned, min=1),
+        ic.ICAElement("number_of_periods", cdt.LongUnsigned, min=1, default=1))
+    M_ELEMENTS = (
+        ic.ICMElement("reset", integers.Only0),
+        ic.ICMElement("next_period", integers.Only0))
     scaler_unit_not_settable: bool
 
     @property

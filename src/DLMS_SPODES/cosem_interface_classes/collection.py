@@ -1875,7 +1875,7 @@ class Collection:
                       obj_mode: ObjectTreeMode = "c",
                       obj_filter: tuple[ClassID | media_id.MediaId | LNPattern, ...] = None,
                       sort_mode: SortMode = "",
-                      af_mode: Literal["l", "r", "w", "lr", "lw", "wr", "lrw"] = "l",
+                      af_mode: Literal["l", "r", "w", "lr", "lw", "wr", "lrw", "m", "mlrw", "mlr"] = "l",
                       ai_filter: tuple[tuple[ClassID, tuple[int, ...]], ...] = None    # todo: maybe ai_filter with LNPattern, indexes need?
                       ) -> dict[ClassID | media_id.MediaId, dict[ic.COSEMInterfaceClasses, list[int]]] | dict[ic.COSEMInterfaceClasses, list[int]]:  # todo: not all ret annotation
         """af_mode(attribute filter mode): l-reduce logical_name, r-show only readable, w-show only writeable,
@@ -1884,6 +1884,7 @@ class Collection:
         without_ln = True if "l" in af_mode else False
         only_read = True if "r" in af_mode else False
         only_write = True if "w" in af_mode else False
+        with_methods = True if "m" in af_mode else False
         ai_f = dict(ai_filter) if ai_filter else dict()
         filtered = self.filter_by_ass(ass_id)
         if obj_filter:
@@ -1916,6 +1917,15 @@ class Collection:
                             continue
                         else:
                             indexes.append(i)
+                    if with_methods:
+                        i_meth = count(1)
+                        for i, m_el in zip(i_meth, obj.M_ELEMENTS):
+                            try:
+                                if self.is_accessible(obj.logical_name, i, ass_id, mechanism_id.LOW):
+                                    indexes.append(-i)
+                            except exc.ITEApplication as e:
+                                logger.error(F"skip {i}... methods for {obj}: {e}")
+                                break
                     if len(indexes) != 0:
                         objects[obj] = indexes
                 if d is None:

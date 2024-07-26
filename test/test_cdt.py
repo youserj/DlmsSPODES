@@ -42,6 +42,10 @@ class TestType(unittest.TestCase):
         a.set([1, 0, 1])
         print(a)
 
+    def test_Time(self):
+        time = cdt.Time("10:01")
+        print(time.to_second())
+
     def test_DateTime(self):
         pattern = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
         self.assertEqual(cdt.DateTime(pattern).decode(), pattern, 'init from datetime and decoding')

@@ -1,5 +1,5 @@
-from __future__ import annotations
 import dataclasses
+from warnings import deprecated
 from abc import ABC, abstractmethod
 from typing import Iterator, Type, TypeAlias, Callable, Any, Self
 from ..types import cdt, ut, cst
@@ -200,7 +200,7 @@ class COSEMInterfaceClasses(ABC):
             case _: return cls.A_ELEMENTS[i - 2]
 
     @classmethod
-    def get_meth_element(cls, i: int) -> ICElement:
+    def get_meth_element(cls, i: int) -> ICMElement:
         """ implement in subclasses with methods """
         return cls.M_ELEMENTS[i - 1]
 
@@ -279,6 +279,7 @@ class COSEMInterfaceClasses(ABC):
         else:
             raise ValueError(F'not support clear {self} attr: {i}')
 
+    @deprecated("use get_meth_element")
     def get_meth(self, index: int) -> Any:
         if index >= 1:
             return self.__specific_methods[index-1]

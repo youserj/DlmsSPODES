@@ -1071,6 +1071,18 @@ class __Time(ABC):
             case '::.', (H, M, S, f): return bytes((from_hour(), from_minute(), from_second(), from_hundredths()))
             case _ as separate_result: raise ValueError(F'Unknown time format: separators={separate_result[0]}, values={", ".join(separate_result[1])}')
 
+    def to_second(self) -> float | int:
+        ret = 0
+        if (hour := self.hour) is not None:
+            ret += hour*1440
+        if (minute := self.minute) is not None:
+            ret += minute*60
+        if (second := self.second) is not None:
+            ret += second
+        if (h := self.hundredths) is not None:
+            ret += h//100
+        return ret
+
 
 class NullData(SimpleDataType):
     """ An ordered sequence of octets (8 bit bytes) """

@@ -1,3 +1,4 @@
+from warnings import deprecated
 import datetime
 from typing import Self
 from . import special_days_table as sdt
@@ -130,7 +131,9 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
                   ic.ICAElement("week_profile_table_passive", WeekProfileTable),
                   ic.ICAElement("day_profile_table_passive", DayProfileTable),
                   ic.ICAElement("activate_passive_calendar_time", cst.OctetStringDateTime))
-    M_ELEMENTS = ic.ICMElement("activate_passive_calendar", integers.Only0),
+    M_ELEMENTS = ic.ICMElement(
+        NAME="activate_passive_calendar",
+        DATA_TYPE=integers.Only0),
 
     def characteristics_init(self):
         # Attributes called …_active are currently active, attributes called …_passive will be activated by the specific
@@ -178,9 +181,14 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
     def activate_passive_calendar_time(self) -> cst.OctetStringDateTime:
         return self.get_attr(10)
 
+    @deprecated("use ActivatePassiveCalendar")
     @property
     def activate_passive_calendar(self) -> integers.Only0:
         return self.get_meth(1)
+
+    @staticmethod
+    def ActivatePassiveCalendar(value=None) -> integers.Only0:
+        return integers.Only0()
 
     def get_current_season(self, server_time: datetime.datetime = None) -> Season:
         """ current server season by current time """

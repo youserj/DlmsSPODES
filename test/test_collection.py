@@ -502,8 +502,9 @@ class TestType(unittest.TestCase):
             obj_mode="",
             # obj_filter=(collection.ClassID.REGISTER, collection.media_id.ABSTRACT),
             # obj_filter=(collection.ClassID.REGISTER,),
+            obj_filter=(collection.ClassID.PROFILE_GENERIC,),
             sort_mode="l",
-            af_mode="lrw",
+            af_mode="mlr",
             ai_filter=((overview.ClassID.REGISTER, (2,)),)
         )
         print(res)
