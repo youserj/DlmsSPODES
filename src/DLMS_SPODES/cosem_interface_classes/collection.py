@@ -592,6 +592,37 @@ def get_unit(class_id: ClassID, par: bytes) -> int | None:
             return None
 
 
+type ObjFilteredKey = tuple[ClassID | LNPattern | LNPatterns | Channel, ...]
+
+
+def get_filtered(objects: Iterable[InterfaceClass],
+                 keys: ObjFilteredKey) -> list[InterfaceClass]:
+    c_ids: list[ut.CosemClassId] = list()
+    patterns: list[LNPattern] = list()
+    ch: Channel | None = None
+    for k in keys:
+        if isinstance(k, ut.CosemClassId):
+            c_ids.append(k)
+        elif isinstance(k, LNPattern):
+            patterns.append(k)
+        elif isinstance(k, LNPatterns):
+            patterns.extend(k)
+        elif isinstance(k, Channel):
+            ch = k
+    new_list = list()
+    for obj in objects:
+        if obj.CLASS_ID in c_ids:
+            pass
+        elif obj.logical_name in patterns:
+            pass
+        else:
+            continue
+        if ch and not ch.is_approve(obj.logical_name.b):
+            continue
+        new_list.append(obj)
+    return new_list
+
+
 class Collection:
     __dlms_ver: int
     __manufacturer: bytes | None
@@ -1473,6 +1504,40 @@ class Collection:
         finally:
             return rep
 
+    def get_report(self,
+                   obj: ic.COSEMInterfaceClasses,
+                   par: bytes,
+                   a_val: cdt.CommonDataType | None
+                   ) -> cdt.Report:
+        """par: attribute_index, par1, par2, ..."""
+        rep = cdt.Report(str(a_val))
+        try:
+            if a_val is None:
+                rep.msg = _report["empty"]
+                rep.log = cdt.EMPTY_VAL
+            elif isinstance(a_val, cdt.ReportMixin):
+                rep = a_val.get_report()
+            else:
+                if unit := get_unit(obj.CLASS_ID, par):
+                    rep.unit = cdt.Unit(unit).get_name()
+                else:
+                    if s_u := self.get_scaler_unit(obj, par):
+                        rep.msg = str(int(a_val) * 10 ** int(s_u.scaler))
+                        rep.unit = s_u.unit.get_name()
+                    else:
+                        match obj.CLASS_ID, *par:
+                            case (ClassID.PROFILE_GENERIC, 3, _) | (ClassID.PROFILE_GENERIC, 6):
+                                a_val: structs.CaptureObjectDefinition
+                                obj = self.get_object(a_val.logical_name)
+                                rep.msg = F"{get_name(a_val.logical_name)}.{obj.get_attr_element(int(a_val.attribute_index))}"
+                            case _:
+                                pass
+                rep.log = cdt.Log(logging.INFO)
+        except Exception as e:
+            rep.log = cdt.Log(logging.ERROR, e)
+        finally:
+            return rep
+
     @lru_cache(20000)
     def get_scaler_unit(self,
                         obj: ic.COSEMInterfaceClasses,
@@ -1873,7 +1938,7 @@ class Collection:
     def get_attr_tree(self,
                       ass_id: int,
                       obj_mode: ObjectTreeMode = "c",
-                      obj_filter: tuple[ClassID | media_id.MediaId | LNPattern, ...] = None,
+                      obj_filter: ObjFilteredKey = None,
                       sort_mode: SortMode = "",
                       af_mode: Literal["l", "r", "w", "lr", "lw", "wr", "lrw", "m", "mlrw", "mlr"] = "l",
                       oi_filter: tuple[tuple[ClassID, tuple[int, ...]], ...] = None  # todo: maybe ai_filter with LNPattern, indexes need?
@@ -2345,34 +2410,6 @@ class Channel:
             return True if b == self.n else False
         else:
             return True
-
-
-def get_filtered(objects: Iterable[InterfaceClass],
-                 keys: tuple[ClassID | LNPattern | LNPatterns | Channel, ...]) -> list[InterfaceClass]:
-    c_ids: list[ut.CosemClassId] = list()
-    patterns: list[LNPattern] = list()
-    ch: Channel | None = None
-    for k in keys:
-        if isinstance(k, ut.CosemClassId):
-            c_ids.append(k)
-        elif isinstance(k, LNPattern):
-            patterns.append(k)
-        elif isinstance(k, LNPatterns):
-            patterns.extend(k)
-        elif isinstance(k, Channel):
-            ch = k
-    new_list = list()
-    for obj in objects:
-        if obj.CLASS_ID in c_ids:
-            pass
-        elif obj.logical_name in patterns:
-            pass
-        else:
-            continue
-        if ch and not ch.is_approve(obj.logical_name.b):
-            continue
-        new_list.append(obj)
-    return new_list
 
 
 RelationGroup: TypeAlias = media_id.Abstract | media_id.Electricity | media_id.Hca | media_id.Gas | media_id.Thermal | media_id.Water | media_id.Other

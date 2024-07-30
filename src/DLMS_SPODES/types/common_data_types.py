@@ -68,6 +68,9 @@ class IntegerEnum(ReportMixin, ABC):
             l = Log(logging.WARN, "unknown value")
         return Report(msg, log=l)
 
+    def get_name(self) -> str:
+        return self.NAMES.get(int(self), "??")
+
 
 # TODO: rewrite with Cython
 def separate(value: str, pattern: str, max_sep: int) -> tuple[str, list[str]]:

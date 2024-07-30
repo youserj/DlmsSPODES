@@ -159,7 +159,7 @@ class TestType(unittest.TestCase):
         value = cdt.Unit(4)
         value.x = 1
         match value:
-            case cdt.Unit(4): print(value)
+            case cdt.Unit(4): print(value.get_name())
         self.assertEqual(int(cdt.Unit()), 1, "default init")
 
     def test_integers(self):
