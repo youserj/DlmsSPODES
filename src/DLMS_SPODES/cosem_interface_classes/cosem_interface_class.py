@@ -1,5 +1,5 @@
 import dataclasses
-from warnings import deprecated
+from typing_extensions import deprecated
 from abc import ABC, abstractmethod
 from typing import Iterator, Type, TypeAlias, Callable, Any, Self
 from ..types import cdt, ut, cst
@@ -7,7 +7,6 @@ from ..relation_to_OBIS import get_name
 import logging
 from enum import IntEnum
 from itertools import count
-from . import collection as col
 from .. import exceptions as exc
 from . import overview
 from ..config_parser import get_values
@@ -123,7 +122,7 @@ class COSEMInterfaceClasses(ABC):
     __specific_methods: tuple[cdt.CommonDataType, ...] = None
     _cbs_attr_post_init: dict[int, Callable]
     __record_time: list[cdt.DateTime | None]  # TODO: make to int
-    collection: col.Collection | None
+    collection: Any | None  # Collection. todo: remove in future
 
     def __init__(self, logical_name: cst.LogicalName | bytes | str):
         self.collection = None

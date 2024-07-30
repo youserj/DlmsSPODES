@@ -1876,16 +1876,17 @@ class Collection:
                       obj_filter: tuple[ClassID | media_id.MediaId | LNPattern, ...] = None,
                       sort_mode: SortMode = "",
                       af_mode: Literal["l", "r", "w", "lr", "lw", "wr", "lrw", "m", "mlrw", "mlr"] = "l",
-                      ai_filter: tuple[tuple[ClassID, tuple[int, ...]], ...] = None    # todo: maybe ai_filter with LNPattern, indexes need?
+                      oi_filter: tuple[tuple[ClassID, tuple[int, ...]], ...] = None  # todo: maybe ai_filter with LNPattern, indexes need?
                       ) -> dict[ClassID | media_id.MediaId, dict[ic.COSEMInterfaceClasses, list[int]]] | dict[ic.COSEMInterfaceClasses, list[int]]:  # todo: not all ret annotation
         """af_mode(attribute filter mode): l-reduce logical_name, r-show only readable, w-show only writeable,
-        attr_filter(attribute index filter), example: ((ClassID.REGISTER, (2,))) - is restricted for Register only Value attribute without logical_name and scaler_unit
+        oi_filter(object attribute index filter), example: ((ClassID.REGISTER, (2,))) - is restricted for Register only Value attribute without logical_name and scaler_unit
         """
         without_ln = True if "l" in af_mode else False
         only_read = True if "r" in af_mode else False
         only_write = True if "w" in af_mode else False
         with_methods = True if "m" in af_mode else False
-        ai_f = dict(ai_filter) if ai_filter else dict()
+        oi_f = dict(oi_filter) if oi_filter else dict()
+        """objects indexes filter"""
         filtered = self.filter_by_ass(ass_id)
         if obj_filter:
             filtered = get_filtered(filtered, obj_filter)
@@ -1905,6 +1906,8 @@ class Collection:
                 objects = dict()
                 for obj in v:
                     obj: ic.COSEMInterfaceClasses
+                    f_i = oi_f.get(obj.CLASS_ID)
+                    """filter indexes"""
                     indexes = list()
                     for i, attr in obj.get_index_with_attributes():
                         if without_ln and i == 1:
@@ -1913,7 +1916,7 @@ class Collection:
                             continue
                         elif only_write and not self.is_writable(obj.logical_name, i, ass_id):
                             continue
-                        elif (attrs := ai_f.get(obj.CLASS_ID)) and i not in attrs:
+                        elif f_i and i not in f_i:
                             continue
                         else:
                             indexes.append(i)
@@ -1921,8 +1924,11 @@ class Collection:
                         i_meth = count(1)
                         for i, m_el in zip(i_meth, obj.M_ELEMENTS):
                             try:
-                                if self.is_accessible(obj.logical_name, i, ass_id, mechanism_id.LOW):
-                                    indexes.append(-i)
+                                if not self.is_accessible(obj.logical_name, i, ass_id, mechanism_id.LOW):
+                                    continue
+                                elif f_i and -i not in f_i:
+                                    continue
+                                indexes.append(-i)
                             except exc.ITEApplication as e:
                                 logger.error(F"skip {i}... methods for {obj}: {e}")
                                 break
@@ -2321,11 +2327,31 @@ def get_sorted(objects: list[InterfaceClass],
         objects = sorted(objects, key=key)
     return objects
 
+@dataclass
+class Channel:
+    """for object filter approve"""
+    n: int
+
+    def __post_init__(self):
+        if not self.is_channel(self.n):
+            raise ValueError(F"got value={self.n}, expected (0..64)")
+
+    @staticmethod
+    def is_channel(b: int) -> bool:
+        return True if 0 <= b <= 64 else False
+
+    def is_approve(self, b: int) -> bool:
+        if self.is_channel(b):
+            return True if b == self.n else False
+        else:
+            return True
+
 
 def get_filtered(objects: Iterable[InterfaceClass],
-                 keys: tuple[ClassID | LNPattern | LNPatterns, ...]) -> list[InterfaceClass]:
+                 keys: tuple[ClassID | LNPattern | LNPatterns | Channel, ...]) -> list[InterfaceClass]:
     c_ids: list[ut.CosemClassId] = list()
     patterns: list[LNPattern] = list()
+    ch: Channel | None = None
     for k in keys:
         if isinstance(k, ut.CosemClassId):
             c_ids.append(k)
@@ -2333,12 +2359,19 @@ def get_filtered(objects: Iterable[InterfaceClass],
             patterns.append(k)
         elif isinstance(k, LNPatterns):
             patterns.extend(k)
+        elif isinstance(k, Channel):
+            ch = k
     new_list = list()
     for obj in objects:
         if obj.CLASS_ID in c_ids:
-            new_list.append(obj)
+            pass
         elif obj.logical_name in patterns:
-            new_list.append(obj)
+            pass
+        else:
+            continue
+        if ch and not ch.is_approve(obj.logical_name.b):
+            continue
+        new_list.append(obj)
     return new_list
 
 

@@ -488,6 +488,11 @@ class TestType(unittest.TestCase):
             )
         )
         print(res3)
+        res4 = collection.get_filtered(
+            objects=col,
+            keys=(overview.ClassID.IEC_HDLC_SETUP, collection.Channel(1),)
+        )
+        print(res4)
 
     def test_get_attr_tree(self):
         type_ = "4d324d5f31"

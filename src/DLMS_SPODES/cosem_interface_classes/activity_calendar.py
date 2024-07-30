@@ -1,4 +1,4 @@
-from warnings import deprecated
+from typing_extensions import deprecated
 import datetime
 from typing import Self
 from . import special_days_table as sdt
@@ -181,14 +181,14 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
     def activate_passive_calendar_time(self) -> cst.OctetStringDateTime:
         return self.get_attr(10)
 
-    @deprecated("use ActivatePassiveCalendar")
     @property
+    @deprecated("use ActivatePassiveCalendar")
     def activate_passive_calendar(self) -> integers.Only0:
         return self.get_meth(1)
 
-    @staticmethod
-    def ActivatePassiveCalendar(value=None) -> integers.Only0:
-        return integers.Only0()
+    @classmethod
+    def ActivatePassiveCalendar(cls, value=None) -> integers.Only0:
+        return cls.M_ELEMENTS[0].DATA_TYPE
 
     def get_current_season(self, server_time: datetime.datetime = None) -> Season:
         """ current server season by current time """
