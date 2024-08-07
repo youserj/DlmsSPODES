@@ -5,6 +5,7 @@
   <country_ver>3.0</country_ver>
   <manufacturer>KPZ</manufacturer>
   <server_type>09054d324d5f31</server_type>
+  <server_ver>1.1.9</server_ver>
   <manufacturer>101</manufacturer>
   <object name="Соединение типа &quot;Публичный клиент&quot;" ln="0.0.40.0.1.255">
     <class_id>15</class_id>

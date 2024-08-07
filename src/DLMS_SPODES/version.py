@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Self
 
 
 class AppVersion:
@@ -15,7 +15,7 @@ class AppVersion:
         self.__additional = additional
 
     @classmethod
-    def from_str(cls, value: str):
+    def from_str(cls, value: str) -> Self:
         match value.split(sep='.', maxsplit=2):
             case (major, minor, patch):
                 match major.isdigit(), minor.isdigit(), patch.isdigit():
@@ -50,10 +50,10 @@ class AppVersion:
     def additional(self) -> str:
         return self.__additional
 
-    def __eq__(self, other: AppVersion):
+    def __eq__(self, other: Self):
         return hash(self) == hash(other) and self.__additional == other.additional
 
-    def __gt__(self, other: AppVersion):
+    def __gt__(self, other: Self):
         if self.__major > other.major:
             return True
         elif self.__major < other.major:
@@ -69,7 +69,7 @@ class AppVersion:
         else:
             return False
 
-    def __ge__(self, other: AppVersion):
+    def __ge__(self, other: Self):
         if self.__major > other.major:
             return True
         elif self.__major < other.major:
@@ -104,6 +104,6 @@ class AppVersion:
         else:
             return hash((self.__major, self.__minor))
 
-    def select_nearest(self, variants: list[AppVersion]) -> AppVersion | None:
+    def select_nearest(self, variants: list[Self]) -> Self | None:
         """ select left nearest from list in minor branch else return None """
         return max(filter(lambda var: var.major == self.__major and var.minor == self.__minor and var.patch <= self.__patch, variants), default=None)

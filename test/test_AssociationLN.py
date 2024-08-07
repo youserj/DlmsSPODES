@@ -15,7 +15,7 @@ class TestType(unittest.TestCase):
     def test_is_writable(self):
         ass = collection.AssociationLNVer1("0.0.40.0.0.255")
         ass.is_writable(
-            ln=cst.LogicalName("0.0.1.0.0.255"),
+            ln=cst.LogicalName.from_obis("0.0.1.0.0.255"),
             index=2)
 
     def test_authentication_name(self):

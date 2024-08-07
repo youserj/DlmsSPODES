@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from ..types import common_data_types as cdt, cosem_service_types as cst, useful_types as ut
 
 
+type ObisGroup = int | set[int]
+
+
 class LNPattern:
     """pattern for use in get_filtered.
     value "x.x.x.x.x.x" where x is:
@@ -11,16 +14,20 @@ class LNPattern:
     ((y-z), ...) - set of simple values with range(from y to z)
     example: "a.0.(1,2,3).(0-64).0.f"
     """
-    __values: list[int, set[int]]
+    # __values: list[int, set[int]]
+    __values: tuple[ObisGroup, ObisGroup, ObisGroup, ObisGroup, ObisGroup, ObisGroup]
 
     def __init__(self, value: str):
-        self.__values = [-1, -1, -1, -1, -1, -1]
+        values: list[ObisGroup] = [-1, -1, -1, -1, -1, -1]
         for i, val in enumerate(value.split('.', maxsplit=5)):
             if len(val) == 1 and (ord(val) == 97+i):
-                continue
+                if val == 'b':
+                    values[i] = set(range(65))
+                else:
+                    continue
             elif val.isdigit():
-                self.__values[i] = int(val)
-                if not (0 <= self.__values[i] <= 255):
+                values[i] = int(val)
+                if not (0 <= values[i] <= 255):
                     raise ValueError(F"in {value=} got element {val=}, expected 0..255")
             elif val.startswith('(') and val.endswith(')'):
                 el: set[int] = set()
@@ -37,9 +44,10 @@ class LNPattern:
                                 self.__simple_validate(end)+1))
                         case err:
                             raise ValueError(F"got a lot of <-> in pattern: {value}, expected one")
-                self.__values[i] = el
+                values[i] = el
             else:
                 raise ValueError(F"got wrong symbol: {val} in pattern")
+            self.__values = tuple(values)
 
     @staticmethod
     def __simple_validate(value: str) -> int:
@@ -58,6 +66,8 @@ class LNPattern:
                 return False
         return True
 
+    def __repr__(self):
+        return F"{self.__class__.__name__}(\"{".".join(map(lambda it: str(it) if isinstance(it, int) else str(tuple(it)), self.__values))}\")"
 
 @dataclass
 class LNPatterns:
@@ -79,7 +89,13 @@ OTHER_MEDIA = LNPattern("15")
 BILLING_PERIOD_VALUES_RESET_COUNTER_ENTRIES = LNPatterns((
     LNPattern("0.b.0.1.(0,2,3,5).f"),
     LNPattern("0.b.0.1.(1,4).255")))
-PROGRAM_ENTRIES = LNPattern("0.b.0.2.(0,1,8).255")
+ACTIVE_FIRMWARE_IDENTIFIER = LNPattern("0.b.0.2.0.255")
+ACTIVE_FIRMWARE_VERSION = LNPattern("0.b.0.2.1.255")
+ACTIVE_FIRMWARE_SIGNATURE = LNPattern("0.b.0.2.8.255")
+PROGRAM_ENTRIES = LNPatterns((
+    ACTIVE_FIRMWARE_IDENTIFIER,
+    ACTIVE_FIRMWARE_VERSION,
+    ACTIVE_FIRMWARE_SIGNATURE))
 TIME_ENTRIES = LNPattern("0.b.0.9.(1,2).255")
 TARIFFICATION_SCRIPT_TABLE = LNPattern("0.b.10.0.100.255")
 ACTIVITY_CALENDAR = LNPattern("0.b.13.0.e.255")
@@ -122,7 +138,7 @@ MANUFACTURER_SPECIFIC_ABSTRACT = LNPattern("0.b.96.(50-99).e.f")
 
 GENERAL_AND_SERVICE_ENTRY = LNPatterns((
     *BILLING_PERIOD_VALUES_RESET_COUNTER_ENTRIES,
-    PROGRAM_ENTRIES,
+    *PROGRAM_ENTRIES,
     TIME_ENTRIES,
     DEVICE_ID,
     PARAMETER_CHANGES_CALIBRATION_AND_ACCESS,

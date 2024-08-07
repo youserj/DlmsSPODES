@@ -16,7 +16,7 @@ class TestType(unittest.TestCase):
         ss = col.add(
             class_id=ClassID.SECURITY_SETUP,
             version=Version.V1,
-            logical_name=cst.LogicalName("0.0.43.0.0.255")
+            logical_name=cst.LogicalName.from_obis("0.0.43.0.0.255")
         )
         print(ss)
         self.assertEqual(ss.security_suite.AES_GCM_128_AUT_ENCR_AND_AES_128_KEY_WRAP, 0, "check constant enum")

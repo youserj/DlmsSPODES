@@ -1,4 +1,4 @@
-dlmsSpodes_env/
+venv/
 build/
 dist/
 .idea/

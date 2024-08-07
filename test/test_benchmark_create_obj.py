@@ -10,7 +10,7 @@ class TestType(unittest.TestCase):
     def test_ProfileGeneric(self):
         cont = list()
         coll = collection.Collection()
-        ln = cst.LogicalName("0.0.96.1.1.255")
+        ln = cst.LogicalName.from_obis("0.0.96.1.1.255")
         # for i in range(100_000):
         #     cont.append(collection.Data(cst.LogicalName("0.0.96.1.1.255")))
         class_id = ut.CosemClassId(1)

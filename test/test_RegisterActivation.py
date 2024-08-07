@@ -9,5 +9,5 @@ class TestType(unittest.TestCase):
         obj = col.add(
             class_id=overview.ClassID.REGISTER_ACTIVATION,
             version=overview.Version.V0,
-            logical_name=cst.LogicalName("0.0.14.0.0.255"))
+            logical_name=cst.LogicalName.from_obis("0.0.14.0.0.255"))
         print(obj)
