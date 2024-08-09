@@ -670,15 +670,18 @@ class Collection:
 
     def __init__(self,
                  country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.RUSSIA,
+                 man: bytes = None,
+                 s_type: ServerType = None,
+                 s_ver: ServerVersion = None,
                  ldn: octet_string.LDN = None):
         self.__collection_ver = None
         self.__dlms_ver = 6
-        self.__manufacturer = None
+        self.__manufacturer = man
         self.__country = country
         self.__country_ver = None
         """country version specification"""
-        self.__server_type = None
-        self.__server_ver = None
+        self.__server_type = s_type
+        self.__server_ver = s_ver
         """key: instance of 0.b.2.0.1.255, value AppVersion"""
         self.__spec = "DLMS_6"
         self.__container = dict()
