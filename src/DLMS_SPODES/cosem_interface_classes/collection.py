@@ -657,10 +657,10 @@ class ServerVersion:
 
 
 class Collection:
-    __dlms_ver: int
-    __manufacturer: bytes | None
+    __dlms_ver: int | None
     __country: CountrySpecificIdentifiers
-    __country_ver: AppVersion | None
+    __country_ver: ServerVersion | None
+    __manufacturer: bytes | None
     __server_type: ServerType | None
     __server_ver: ServerVersion | None
     __container: dict[bytes, InterfaceClass]
@@ -669,16 +669,19 @@ class Collection:
     __collection_ver: ServerVersion | None
 
     def __init__(self,
+                 dlms_ver: int = 6,
                  country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.RUSSIA,
+                 cntr_ver: ServerVersion = None,
                  man: bytes = None,
                  s_type: ServerType = None,
                  s_ver: ServerVersion = None,
+                 c_ver: ServerVersion = None,
                  ldn: octet_string.LDN = None):
-        self.__collection_ver = None
-        self.__dlms_ver = 6
+        self.__dlms_ver = dlms_ver
+        self.__collection_ver = c_ver
         self.__manufacturer = man
         self.__country = country
-        self.__country_ver = None
+        self.__country_ver = cntr_ver
         """country version specification"""
         self.__server_type = s_type
         self.__server_ver = s_ver
@@ -700,11 +703,14 @@ class Collection:
         return hash((self.__manufacturer, self.__server_type, self.__collection_ver))
 
     def copy(self, ldn: octet_string.LDN = None) -> Self:
-        new_collection = Collection(self.__country, ldn=ldn)
-        new_collection.set_dlms_ver(self.__dlms_ver)
-        new_collection.set_manufacturer(self.__manufacturer)
-        new_collection.set_country_ver(self.__country_ver)
-        new_collection.set_collection_ver(self.__collection_ver)
+        new_collection = Collection(
+            dlms_ver=self.__dlms_ver,
+            country=self.__country,
+            cntr_ver=self.__country_ver,
+            man=self.__manufacturer,
+            s_type=self.__server_type,
+            c_ver=self.__collection_ver,
+            ldn=ldn)
         new_collection.set_spec()
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
@@ -781,7 +787,7 @@ class Collection:
     def country_ver(self):
         return self.__country_ver
 
-    def set_country_ver(self, value: AppVersion):
+    def set_country_ver(self, value: ServerVersion):
         """country version specification"""
         if not self.__country_ver:
             self.__country_ver = value
