@@ -12,7 +12,7 @@ class TestType(unittest.TestCase):
     def test_Limiter(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString("4d324d5f33")),
             server_ver=collection.ServerVersion(

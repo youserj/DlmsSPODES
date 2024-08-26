@@ -623,7 +623,7 @@ def get_filtered(objects: Iterable[InterfaceClass],
     return new_list
 
 @dataclass
-class ServerType:
+class ServerId:
     par: bytes
     value: cdt.CommonDataType
 
@@ -661,8 +661,11 @@ class Collection:
     __country: CountrySpecificIdentifiers
     __country_ver: ServerVersion | None
     __manufacturer: bytes | None
-    __server_type: ServerType | None
+    """according to LDN manufacturer field"""
+    __server_id: ServerId | None
+    """according to Active Firmware identifier"""
     __server_ver: ServerVersion | None
+    """according to Active Firmware version"""
     __container: dict[bytes, InterfaceClass]
     __const_objs: int
     __spec: str
@@ -673,7 +676,7 @@ class Collection:
                  country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.RUSSIA,
                  cntr_ver: ServerVersion = None,
                  man: bytes = None,
-                 s_type: ServerType = None,
+                 s_id: ServerId = None,
                  s_ver: ServerVersion = None,
                  c_ver: ServerVersion = None,
                  ldn: octet_string.LDN = None):
@@ -683,7 +686,7 @@ class Collection:
         self.__country = country
         self.__country_ver = cntr_ver
         """country version specification"""
-        self.__server_type = s_type
+        self.__server_id = s_id
         self.__server_ver = s_ver
         """key: instance of 0.b.2.0.1.255, value AppVersion"""
         self.__spec = "DLMS_6"
@@ -700,7 +703,7 @@ class Collection:
         return hash(self) == hash(other)
 
     def __hash__(self):
-        return hash((self.__manufacturer, self.__server_type, self.__collection_ver))
+        return hash((self.__manufacturer, self.__server_id, self.__collection_ver))
 
     def copy(self, ldn: octet_string.LDN = None) -> Self:
         new_collection = Collection(
@@ -708,7 +711,7 @@ class Collection:
             country=self.__country,
             cntr_ver=self.__country_ver,
             man=self.__manufacturer,
-            s_type=self.__server_type,
+            s_id=self.__server_id,
             c_ver=self.__collection_ver,
             ldn=ldn)
         new_collection.set_spec()
@@ -798,15 +801,15 @@ class Collection:
                 """success validation"""
 
     @property
-    def server_type(self) -> ServerType | None:
-        return self.__server_type
+    def server_id(self) -> ServerId | None:
+        return self.__server_id
 
-    def set_server_type(self, value: ServerType, force: bool = False):
-        if not self.__server_type or force:
-            self.__server_type = value
+    def set_server_id(self, value: ServerId, force: bool = False):
+        if not self.__server_id or force:
+            self.__server_id = value
         else:
-            if value != self.__server_type:
-                raise ValueError(F"got server type: {value}, expected {self.__server_type}")
+            if value != self.__server_id:
+                raise ValueError(F"got server type: {value}, expected {self.__server_id}")
             else:
                 """success validation"""
 
@@ -826,7 +829,7 @@ class Collection:
             """success validation"""
 
     @property
-    def collection_ver(self) -> ServerType | None:
+    def collection_ver(self) -> ServerId | None:
         return self.__collection_ver
 
     def set_collection_ver(self, value: ServerVersion):
@@ -840,7 +843,7 @@ class Collection:
 
     def __str__(self):
         return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country.name}, country specific version: {self.__country_ver}, " \
-               F"manufacturer: {self.__manufacturer}, server type: {self.__server_type}, server/collection version: {self.__server_ver}/{self.__collection_ver}, " \
+               F"manufacturer: {self.__manufacturer}, server type: {self.__server_id}, server/collection version: {self.__server_ver}/{self.__collection_ver}, " \
                F"uses specification: {self.__spec}"
 
     def __iter__(self) -> Iterator[ic.COSEMInterfaceClasses]:
@@ -863,7 +866,7 @@ class Collection:
             self.set_manufacturer(bytes.fromhex(man_node.text))
             server_node = man_node
         if (server_type_node := server_node.find("server_type")) is not None:
-            self.set_server_type(ServerType(
+            self.set_server_id(ServerId(
                 par=bytes.fromhex("0000600101ff02") if (root_version < AppVersion(5, 0)) else bytes.fromhex(server_type_node.attrib.get("par", "0000000200ff02")),
                 value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_type_node.text))[0]))
         if (server_ver_node := server_node.find("server_ver")) is not None:
@@ -1179,9 +1182,9 @@ class Collection:
     def get_collection_xml_elements(self, objects: ET.Element) -> ET.Element:
         man_node = ET.SubElement(objects, 'manufacturer')
         man_node.text = self.manufacturer.hex()
-        if self.server_type is not None:
-            server_type_node = ET.SubElement(man_node, 'server_type', attrib={"par": self.server_type.par.hex()})
-            server_type_node.text = self.server_type.value.encoding.hex()
+        if self.server_id is not None:
+            server_type_node = ET.SubElement(man_node, 'server_type', attrib={"par": self.server_id.par.hex()})
+            server_type_node.text = self.server_id.value.encoding.hex()
         if (ver := self.server_ver) is None:
             ver = self.collection_ver
         server_ver_node = ET.SubElement(man_node, 'server_ver', attrib={"par": ver.par.hex()})
@@ -1199,7 +1202,7 @@ class Collection:
         objects = self.__get_base_xml_element(root_tag)
         col = get(
             m=self.manufacturer,
-            t=self.server_type,
+            t=self.server_id,
             ver=self.server_ver)
         is_empty: bool = True
         for desc in col.getASSOCIATION(association_id).object_list:
@@ -2089,7 +2092,7 @@ def from_xml4(filename: str) -> tuple[list[Collection], UsedAttributes, bool]:
             for server_ver_node in server_type_node.findall("server_ver"):
                 if root_version < AppVersion(5, 0):
                     man = man_node.text.encode("utf-8")
-                    ser_type = ServerType(
+                    ser_type = ServerId(
                         par=bytes.fromhex("0000600101ff02"),
                         value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_type_node.text))[0])
                     ser_ver = ServerVersion(
@@ -2097,7 +2100,7 @@ def from_xml4(filename: str) -> tuple[list[Collection], UsedAttributes, bool]:
                         value=cdt.OctetString(bytearray(server_ver_node.text.encode(encoding="ascii"))))
                 else:
                     man = bytes.fromhex(man_node.text)
-                    ser_type = ServerType(
+                    ser_type = ServerId(
                         par=bytes.fromhex("0000000200ff02"),
                         value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_type_node.text))[0])
                     ser_ver = ServerVersion(
@@ -2196,7 +2199,7 @@ def get_manufactures_container() -> dict[bytes, dict[bytes, dict[AppVersion | cd
 
 
 @lru_cache(maxsize=100)
-def get_dir_entry(m: bytes, t: ServerType, ver: ServerVersion) -> os.DirEntry:
+def get_dir_entry(m: bytes, t: ServerId, ver: ServerVersion) -> os.DirEntry:
     """one recursion collection get way. ret: file, is_searched"""
     if (man := get_manufactures_container().get(m)) is None:
         raise exc.NoConfig(F"no support manufacturer: {m}")
@@ -2212,19 +2215,19 @@ def get_dir_entry(m: bytes, t: ServerType, ver: ServerVersion) -> os.DirEntry:
 
 
 @lru_cache(maxsize=100)
-def get(m: bytes, t: ServerType, ver: ServerVersion) -> Collection:
+def get(m: bytes, t: ServerId, ver: ServerVersion) -> Collection:
     """caching collection"""
     return Collection.from_xml(get_dir_entry(m, t, ver))
 
 
 def get_collection(
         manufacturer: bytes,
-        server_type: ServerType,
+        server_type: ServerId,
         server_ver: ServerVersion,
 ) -> Collection:
     """get copy of collection with caching"""
     ret = get(manufacturer, server_type, server_ver).copy()
-    ret.set_server_type(server_type)  # if xml file not contains the type
+    ret.set_server_id(server_type)  # if xml file not contains the type
     ret.set_server_ver(server_ver)
     return ret
 

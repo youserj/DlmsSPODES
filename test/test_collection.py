@@ -25,14 +25,14 @@ server_1_6_2 = collection.ServerVersion(
 
 col_M2M1_1_5_15 = collection.get_collection(
     manufacturer=b"KPZ",
-    server_type=collection.ServerType(
+    server_type=collection.ServerId(
         par=bytes.fromhex("0000600102ff02"),
         value=cdt.OctetString(bytearray(b'M2M_1'))),
     server_ver=server_1_5_15)
 
 col_M2M1_1_6_2 = collection.get_collection(
     manufacturer=b"KPZ",
-    server_type=collection.ServerType(
+    server_type=collection.ServerId(
         par=bytes.fromhex("0000600102ff02"),
         value=cdt.OctetString(bytearray(b'M2M_1'))),
     server_ver=server_1_6_2)
@@ -89,7 +89,7 @@ class TestType(unittest.TestCase):
         """for template"""
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -101,7 +101,7 @@ class TestType(unittest.TestCase):
         """for template"""
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -109,7 +109,7 @@ class TestType(unittest.TestCase):
                 value=cdt.OctetString(bytearray(b"1.4.15"))))
         col2 = collection.get_collection(
             manufacturer=b"102",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -188,7 +188,7 @@ class TestType(unittest.TestCase):
     def test_hash(self):
         col1 = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -196,7 +196,7 @@ class TestType(unittest.TestCase):
                 value=cdt.OctetString(bytearray(b"1.4.13"))))
         col2 = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -222,7 +222,7 @@ class TestType(unittest.TestCase):
         """
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -237,7 +237,7 @@ class TestType(unittest.TestCase):
     def test_copy(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -248,7 +248,7 @@ class TestType(unittest.TestCase):
         # col.getAssociationBySAP.cache_clear()
         col1 = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -262,7 +262,7 @@ class TestType(unittest.TestCase):
 
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -276,7 +276,7 @@ class TestType(unittest.TestCase):
     def test_change_version(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -310,7 +310,7 @@ class TestType(unittest.TestCase):
         man = b"KPZ"
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3T'))),
             server_ver=collection.ServerVersion(
@@ -331,7 +331,7 @@ class TestType(unittest.TestCase):
     def test_get_phases_amount(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -340,7 +340,7 @@ class TestType(unittest.TestCase):
         self.assertEqual(col.get_n_phases(), 1, "check amount")
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_3'))),
             server_ver=collection.ServerVersion(
@@ -368,7 +368,7 @@ class TestType(unittest.TestCase):
     def test_group_objects(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -404,7 +404,7 @@ class TestType(unittest.TestCase):
         from src.DLMS_SPODES.obis.media_id import MediaId
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -420,7 +420,7 @@ class TestType(unittest.TestCase):
     def test_sort_objects(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -434,7 +434,7 @@ class TestType(unittest.TestCase):
     def test_get_filtered(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -468,7 +468,7 @@ class TestType(unittest.TestCase):
     def test_get_attr_tree(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -494,7 +494,7 @@ class TestType(unittest.TestCase):
         print(cst.LogicalName.from_obis("1.2.31.4.5.9") in (pattern, pattern2))
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -511,7 +511,7 @@ class TestType(unittest.TestCase):
     def test_get_scaler_unit(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -530,7 +530,7 @@ class TestType(unittest.TestCase):
     def test_get_report(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -568,7 +568,7 @@ class TestType(unittest.TestCase):
     def test_get_profile_s_u(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -583,7 +583,7 @@ class TestType(unittest.TestCase):
     def test_Spodes_locker_obj(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
@@ -598,7 +598,7 @@ class TestType(unittest.TestCase):
         from src.DLMS_SPODES.cosem_interface_classes.association_ln.mechanism_id import MechanismIdElement
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerType(
+            server_type=collection.ServerId(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString(bytearray(b'M2M_1'))),
             server_ver=collection.ServerVersion(
