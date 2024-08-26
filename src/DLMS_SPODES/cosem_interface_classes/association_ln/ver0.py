@@ -95,6 +95,17 @@ class ObjectListType(arrays.SelectionAccess):
         else:
             raise ValueError(F"access for {ln}: {index} is absense")
 
+    def get_access_mode(self, ln: cst.LogicalName, i: int) -> AccessMode:
+        """ index - DLMS object attribute index """
+        for item in self.__get_access_right(ln).attribute_access:  # item: AttributeAccessItem
+            item: AttributeAccessItem
+            if int(item.attribute_id) == i:
+                return item.access_mode
+            else:
+                continue
+        else:
+            raise ValueError(F"access for {ln}: {i} is absense")
+
     def get_meth_access(self, ln: cst.LogicalName | ut.CosemObjectInstanceId, index: int) -> pdu.MethodAccess:
         """ index - DLMS object method index """
         for item in self.__get_access_right(ln).method_access:  # item: MethodAccessItem
@@ -290,7 +301,6 @@ class AssociationLN(ic.COSEMInterfaceClasses):
         self.set_attr(8, None)
         # init secret after set authentication_mechanism_name(6)
         self._cbs_attr_post_init.update({
-            2: self.__set_to_collection,
             5: self.__check_dlms_version_with_collection,
             6: self.__init_secret,
             7: self.__check_mechanism_id_existing})
@@ -338,17 +348,6 @@ class AssociationLN(ic.COSEMInterfaceClasses):
     @property
     def remove_object(self) -> ObjectListElement:
         return self.get_meth(4)
-
-    def __set_to_collection(self):
-        """add object to collection if it absense"""
-        self.object_list.selective_access = SelectiveAccessDescriptor()
-        for obj_list_el in self.object_list:
-            obj_list_el: ObjectListElement
-            self.collection.add_if_missing(
-                class_id=ut.CosemClassId(int(obj_list_el.class_id)),
-                version=obj_list_el.version,
-                logical_name=obj_list_el.logical_name
-            )
 
     def __check_mechanism_id_existing(self):
         """check for existing mechanism ID else ERASE setting"""
@@ -458,27 +457,9 @@ class AssociationLN(ic.COSEMInterfaceClasses):
                     security_policy: pdu.SecurityPolicy = pdu.SecurityPolicyVer0.NOTHING
                     ) -> bool:
         self.__check_empty_object_list()
-        match self.object_list.get_attr_access(ln, index):
-            case pdu.AttributeAccess.NO_ACCESS | pdu.AttributeAccess.READ_ONLY | pdu.AttributeAccess.AUTHENTICATED_READ_ONLY:
-                return False
-            case pdu.AttributeAccess.WRITE_ONLY | pdu.AttributeAccess.READ_AND_WRITE:
-                return True
-            case pdu.AttributeAccess.AUTHENTICATED_WRITE_ONLY | pdu.AttributeAccess.AUTHENTICATED_READ_AND_WRITE:
-                if isinstance(security_policy, pdu.SecurityPolicyVer0):
-                    match security_policy:
-                        case pdu.SecurityPolicyVer0.AUTHENTICATED | pdu.SecurityPolicyVer0.AUTHENTICATED_AND_ENCRYPTED:
-                            return True
-                        case _:
-                            return False
-                elif isinstance(security_policy, pdu.SecurityPolicyVer1):
-                    if bool(security_policy & (pdu.SecurityPolicyVer1.AUTHENTICATED_REQUEST | pdu.SecurityPolicyVer1.AUTHENTICATED_RESPONSE)):
-                        return True
-                    else:
-                        return False
-                else:
-                    raise TypeError(F"unknown {security_policy.__class__}: {security_policy}")
-            case err:
-                raise exc.ITEApplication(F"unsupport access: {err}")
+        return is_attr_writable(
+            mode=self.object_list.get_access_mode(ln, index),
+            security_policy=security_policy)
 
     def is_accessible(self, ln: cst.LogicalName,
                       index: int,
@@ -500,3 +481,29 @@ class AssociationLN(ic.COSEMInterfaceClasses):
                     return False
             case err:
                 raise exc.ITEApplication(F"unsupport access: {err}")
+
+def is_attr_writable(
+        mode: AccessMode,
+        security_policy: pdu.SecurityPolicy = pdu.SecurityPolicyVer0.NOTHING) -> bool:
+    match int(mode):
+        case pdu.AttributeAccess.NO_ACCESS | pdu.AttributeAccess.READ_ONLY | pdu.AttributeAccess.AUTHENTICATED_READ_ONLY:
+            return False
+        case pdu.AttributeAccess.WRITE_ONLY | pdu.AttributeAccess.READ_AND_WRITE:
+            return True
+        case pdu.AttributeAccess.AUTHENTICATED_WRITE_ONLY | pdu.AttributeAccess.AUTHENTICATED_READ_AND_WRITE:
+            if isinstance(security_policy, pdu.SecurityPolicyVer0):
+                match security_policy:
+                    case pdu.SecurityPolicyVer0.AUTHENTICATED | pdu.SecurityPolicyVer0.AUTHENTICATED_AND_ENCRYPTED:
+                        return True
+                    case _:
+                        return False
+            elif isinstance(security_policy, pdu.SecurityPolicyVer1):
+                if bool(security_policy & (pdu.SecurityPolicyVer1.AUTHENTICATED_REQUEST | pdu.SecurityPolicyVer1.AUTHENTICATED_RESPONSE)):
+                    return True
+                else:
+                    return False
+            else:
+                raise TypeError(F"unknown {security_policy.__class__}: {security_policy}")
+        case err:
+            raise exc.ITEApplication(F"unsupport access: {err}")
+
