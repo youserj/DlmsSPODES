@@ -95,7 +95,14 @@ InterfaceClass: TypeAlias = Data | Register | ExtendedRegister | DemandRegister 
                             NTPSetup
 
 
-UsedAttributes: TypeAlias = dict[cst.LogicalName, set[int]]
+class OBIS(bytes):
+    """Object Identification System bytes[6]"""
+    def validation(self) -> bool:
+        return True if len(self) == 6 else False
+
+
+type AttributeIndex = int
+UsedAttributes: TypeAlias = dict[OBIS, set[AttributeIndex]]
 
 
 ObjectTreeMode: TypeAlias = Literal["", "m", "g", "c", "mc", "cm", "gm", "gc", "cg", "gmc"]
@@ -2759,3 +2766,10 @@ def class_id_filter(container: DLMSObjectContainer, class_id: ClassID) -> filter
 
 def media_id_filter(container: DLMSObjectContainer, media_id: media_id.MediaId) -> filter[InterfaceClass]:
     return filter(lambda obj: obj.logical_name.a == media_id, container)
+
+
+@dataclass
+class Template:
+    collections: list[Collection]
+    used:        UsedAttributes
+    verified:    bool = False
