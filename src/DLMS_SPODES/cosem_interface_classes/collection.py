@@ -95,14 +95,8 @@ InterfaceClass: TypeAlias = Data | Register | ExtendedRegister | DemandRegister 
                             NTPSetup
 
 
-class OBIS(bytes):
-    """Object Identification System bytes[6]"""
-    def validation(self) -> bool:
-        return True if len(self) == 6 else False
-
-
 type AttributeIndex = int
-UsedAttributes: TypeAlias = dict[OBIS, set[AttributeIndex]]
+UsedAttributes: TypeAlias = dict[cst.LogicalName, set[AttributeIndex]]
 
 
 ObjectTreeMode: TypeAlias = Literal["", "m", "g", "c", "mc", "cm", "gm", "gc", "cg", "gmc"]
@@ -533,6 +527,7 @@ func_maps["SPODES_3"] = get_func_map(__func_map_for_create)
 
 # KPZ Update
 __func_map_for_create.update({
+    (0, 128, 25, 6, 0): ClassMap({0: impl.data.DataStatic}),
     (0, 128, 96, 13, 1): ClassMap({0: impl.data.ITEBitMap}),
     (0, 128, 154, 0, 0): ClassMap({0: impl.data.KPZGSMPingIP}),
     (0, 0, 128, (100, 101, 102, 103, 150, 151, 152, 170)): DataMap,
@@ -1230,7 +1225,7 @@ class Collection:
                     is_empty = False
                     if not object_node:
                         object_node = ET.SubElement(objects, 'object', attrib={'ln': str(obj.logical_name)})
-                    ET.SubElement(object_node, 'attribute', attrib={'index': str(i)}).text = attr.encoding.hex()
+                    ET.SubElement(object_node, 'attr', attrib={'index': str(i)}).text = attr.encoding.hex()
         if not is_empty:
             # TODO: '<!DOCTYPE ITE_util_tree SYSTEM "setting.dtd"> or xsd
             xml_string = ET.tostring(objects, encoding='cp1251', method='xml')

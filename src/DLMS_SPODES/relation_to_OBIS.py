@@ -372,6 +372,7 @@ def get_name(logical_name: cst.LogicalName) -> str:
         case  0, 0, 128, 170, 0:   return rn.ITE_ICCID
         case  0, 0, 128, 171, 0:   return rn.KPZ_IMSI
         case  0, 128, 154, 0, 0:   return F"KPZPingTestSetup"
+        case  0, 128, 25, 6, 0:   return F"(KPZ) ICCID"
         case  1, b, 0, 0, e:    return F"{F'{rn.COMPLETE_COMBINED_ELECTRICITY_ID} {e+1}'}{handle_B(b)}"
         case  1, b, 0, 2, 0:    return F"{rn.ACTIVE_FIRMWARE_IDENTIFIER}{handle_B(b)}"
         case  1, b, 0, 2, 8:    return F"{rn.ACTIVE_FIRMWARE_SIGNATURE}{handle_B(b)}"

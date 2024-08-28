@@ -1,48 +1,22 @@
 from typing import Self
+import re
 from ..types import common_data_types as cdt
 import datetime
 
 
 class LogicalName(cdt.ReportMixin, cdt.OctetString, size=6):
     """ Logical Name type. Default is CLock#1 """
+    __pattern = re.compile("(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})")
     __match_args__ = ('a', 'b', 'c', 'd', 'e', 'f')
     DEFAULT = b'\x00\x00\x01\x00\x00\xff'
 
     @classmethod
     def from_obis(cls, value: str) -> Self:
         """ create logical_name: octet_string from string type ddd.ddd.ddd.ddd.ddd.ddd, ex.: 0.0.1.0.0.255 """
-        raw_value = bytearray()
-        for typecast, separator in zip((cls._from_group_A,) * 5 + (cls._from_group_F,), ('.', '.', '.', '.', '.', ' ')):
-            try:
-                element, value = value.split(separator, 1)
-            except ValueError:
-                element, value = value, ''
-            raw_value.append(typecast(element))
-        return cls(raw_value)
-
-    @staticmethod
-    def _from_group_A(value: str) -> int:
-        if isinstance(value, str):
-            if value == '':
-                return 0
-            try:
-                return int(value)
-            except OverflowError:
-                raise ValueError(F'Int too big to convert {value}')
+        if (res := cls.__pattern.search(value)) is None:
+            raise ValueError(F"got wrong obis: {value}")
         else:
-            raise TypeError(F'Unsupported type validation from string, got {value.__class__}')
-
-    @staticmethod
-    def _from_group_F(value: str) -> int:
-        if isinstance(value, str):
-            if value == '':
-                return 0xff
-            try:
-                return int(value)
-            except OverflowError:
-                raise ValueError(F'Int too big to convert {value}')
-        else:
-            raise TypeError(F'Unsupported type validation from string, got {value.__class__}')
+            return cls(bytearray(map(int, res.groups())))
 
     def get_report(self) -> cdt.Report:
         return cdt.Report('.'.join(map(str, self.contents)))  # todo: add error handle
