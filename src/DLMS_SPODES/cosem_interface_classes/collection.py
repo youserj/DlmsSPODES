@@ -680,8 +680,7 @@ class Collection:
                  man: bytes = None,
                  s_id: ServerId = None,
                  s_ver: ServerVersion = None,
-                 c_ver: ServerVersion = None,
-                 ldn: octet_string.LDN = None):
+                 c_ver: ServerVersion = None):
         self.__dlms_ver = dlms_ver
         self.__collection_ver = c_ver
         self.__manufacturer = man
@@ -694,12 +693,10 @@ class Collection:
         self.__spec = "DLMS_6"
         self.__container = dict()
         """ all DLMS objects container with obis key """
-        ldn_obj = self.add(
+        self.add(
             class_id=ClassID.DATA,
             version=Version.V0,
             logical_name=cst.LogicalName.from_obis("0.0.42.0.0.255"))
-        if ldn:
-            ldn_obj.set_attr(2, ldn)
 
     def __eq__(self, other: Self):
         return hash(self) == hash(other)
@@ -845,7 +842,7 @@ class Collection:
 
     def __str__(self):
         return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country.name}, country specific version: {self.__country_ver}, " \
-               F"manufacturer: {self.__manufacturer}, server type: {self.__server_id}, server/collection version: {self.__server_ver}/{self.__collection_ver}, " \
+               F"manufacturer: {self.__manufacturer}, server ID: {self.__server_id}, server/collection Version: {self.__server_ver}/{self.__collection_ver}, " \
                F"uses specification: {self.__spec}"
 
     def __iter__(self) -> Iterator[ic.COSEMInterfaceClasses]:
