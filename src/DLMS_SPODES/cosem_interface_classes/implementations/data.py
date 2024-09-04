@@ -1,9 +1,9 @@
 from ..data import Data, ic, cdt, cst, choices
 from ... import enums as enu
 from ...types import implementations as impl
-from ...version import AppVersion
 from ...config_parser import get_message
 import logging
+from semver import Version as SemVer
 from ... import exceptions as exc
 
 
@@ -389,13 +389,19 @@ class DLMSDeviceIDObject(DataStatic):
     A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=choices.device_id_object),
 
 
-class SPODES3SPODESVersionValue(cdt.OctetString):
-    def __init__(self, value="332e30"):
-        super(SPODES3SPODESVersionValue, self).__init__(value)
-        match AppVersion.from_str(self.contents.decode("utf-8")):
-            case AppVersion(0, 0, 0): raise ValueError(F"got invalid SPODES VERSION VALUE with: {self}")
-            case AppVersion(_, _, None): """valid version"""
-            case _: raise ValueError(F"got invalid SPODES VERSION VALUE with: {self}")
+class SPODES3SPODESVersionValue(cdt.ReportMixin, cdt.OctetString):
+    def get_report(self) -> cdt.Report:
+        """custom string represent"""
+        try:
+            msg = SemVer.parse(self.contents)
+            log = cdt.INFO_LOG
+        except ValueError as e:
+            msg = str(self)
+            log = cdt.Log(logging.ERROR, msg=e)
+        return cdt.Report(
+            msg=msg,
+            log=log
+        )
 
 
 class SPODES3SPODESVersion(DLMSDeviceIDObject):

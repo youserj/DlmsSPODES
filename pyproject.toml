@@ -14,12 +14,13 @@ DLMS_SPODES = ["config.toml"]
 
 [project]
 name = "DLMS_SPODES"
-version = "0.76.7"
+version = "0.76.8"
 authors = [
     {name="Serj Kotilevski", email="youserj@outlook.com"}
 ]
 dependencies = [
     "pycryptodomex>=3.15",
+    "semver>=3.0.2",
     "typing-extensions>=4.12.2"  # remove for 3.13(use for @deprecated)
 ]
 description="dlms-spodes"

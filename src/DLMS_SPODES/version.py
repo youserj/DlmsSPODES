@@ -1,4 +1,12 @@
 from typing import Self
+from enum import IntFlag, auto
+
+
+class SemVerField(IntFlag):
+    NULL = 0
+    MAJOR = auto()
+    MINOR = auto()
+    PATCH = auto()
 
 
 class AppVersion:
@@ -49,6 +57,17 @@ class AppVersion:
     @property
     def additional(self) -> str:
         return self.__additional
+
+    def equal(self, other: Self, skip: SemVerField = SemVerField.NULL) -> bool:
+        """comparing with skip fields"""
+        if SemVerField.MAJOR not in skip and self.major != other.major:
+            return False
+        elif SemVerField.MINOR not in skip and self.minor != other.minor:
+            return False
+        elif SemVerField.PATCH not in skip and self.patch != other.patch:
+            return False
+        else:
+            return True
 
     def __eq__(self, other: Self):
         return hash(self) == hash(other) and self.__additional == other.additional

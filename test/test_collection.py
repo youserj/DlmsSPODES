@@ -23,18 +23,22 @@ server_1_6_2 = collection.ServerVersion(
         par=bytes.fromhex("0000000201ff02"),
         value=cdt.OctetString(bytearray(b"1.6.2")))
 
+serID_M2M_1 = collection.ServerId(
+        par=bytes.fromhex("0000600102ff02"),
+        value=cdt.OctetString(bytearray(b'M2M_1')))
+
+serID_M2M_3 = collection.ServerId(
+        par=bytes.fromhex("0000600102ff02"),
+        value=cdt.OctetString(bytearray(b'M2M_3')))
+
 col_M2M1_1_5_15 = collection.get_collection(
     manufacturer=b"KPZ",
-    server_type=collection.ServerId(
-        par=bytes.fromhex("0000600102ff02"),
-        value=cdt.OctetString(bytearray(b'M2M_1'))),
+    server_type=serID_M2M_1,
     server_ver=server_1_5_15)
 
 col_M2M1_1_6_2 = collection.get_collection(
     manufacturer=b"KPZ",
-    server_type=collection.ServerId(
-        par=bytes.fromhex("0000600102ff02"),
-        value=cdt.OctetString(bytearray(b'M2M_1'))),
+    server_type=serID_M2M_1,
     server_ver=server_1_6_2)
 
 
@@ -49,7 +53,7 @@ class TestType(unittest.TestCase):
     def test_add(self):
         col = collection.Collection()
         col.set_manufacturer(b"KPZ")
-        col.set_server_ver(0, AppVersion(1, 4, 0))
+        col.set_server_ver(server_1_5_15)
         col.set_spec()
         ver_obj = col.add(class_id=ut.CosemClassId(1),
                           version=cdt.Unsigned(0),
@@ -73,25 +77,23 @@ class TestType(unittest.TestCase):
     def test_get_object_list(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=cdt.OctetString("4d324d5f33"),
-            server_ver=AppVersion.from_str("1.4.15"))
+            server_type=serID_M2M_1,
+            server_ver=server_1_5_15)
         print(col)
         a = col.get_objects_list(collection.enums.ClientSAP(48))
         print(a)
         for i in range(10):
             col_new = collection.get_collection(
                 manufacturer=b"KPZ",
-                server_type=cdt.OctetString("4d324d5f33"),
-                server_ver=AppVersion.from_str("1.4.16"))
+                server_type=serID_M2M_3,
+                server_ver=server_1_6_2)
             print(col_new)
 
     def test_save_type(self):
         """for template"""
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerId(
-                par=bytes.fromhex("0000600102ff02"),
-                value=cdt.OctetString(bytearray(b'M2M_1'))),
+            server_type=serID_M2M_1,
             server_ver=collection.ServerVersion(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.5.15"))))
@@ -101,9 +103,7 @@ class TestType(unittest.TestCase):
         """for template"""
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerId(
-                par=bytes.fromhex("0000600102ff02"),
-                value=cdt.OctetString(bytearray(b'M2M_3'))),
+            server_type=serID_M2M_3,
             server_ver=collection.ServerVersion(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.4.15"))))

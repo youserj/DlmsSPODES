@@ -2,7 +2,6 @@
 principles (see Clause 4 EN 62056-62:2007), the identification of real data items is specified in IEC 62056-61. The following clauses define the
 usage of those definitions in the COSEM environment. All codes, which are not explicitly listed, but outside the manufacturer specific range are
 reserved for future use."""
-from __future__ import annotations
 import os
 import copy
 from struct import pack
@@ -12,6 +11,7 @@ from itertools import count, chain
 from functools import reduce, cached_property, lru_cache
 from typing import TypeAlias, Iterator, Type, Self, Callable, Literal, Iterable
 import logging
+from semver import Version as SemVer
 from ..version import AppVersion
 from ..types import common_data_types as cdt, cosem_service_types as cst, useful_types as ut
 from ..types.implementations import structs, enums, octet_string
@@ -1295,13 +1295,16 @@ class Collection:
             case 6: self.__spec = "DLMS_6"
             case _: raise ValueError(F"unsupport {self.dlms_ver=}")
         if self.country == CountrySpecificIdentifiers.RUSSIA:
-            if self.country_ver == AppVersion(3, 0):
+            if self.country_ver == ServerVersion(
+                    par=b'\x00\x00`\x01\x06\xff\x02',
+                    value=cdt.OctetString(bytearray(b"3.0"))
+            ):
                 self.__spec = "SPODES_3"
-            if self.manufacturer == b"KPZ":
-                if self.server_ver and isinstance(semver := self.server_ver.get_semver(), AppVersion) and (semver < AppVersion(1, 3, 30)):
-                    self.__spec = "KPZ1"
-                else:
+            match self.manufacturer:
+                case b"KPZ":
                     self.__spec = "KPZ"
+                case b"101", b"102", b"103", b"104":
+                    self.__spec = "KPZ1"
             pass
         else:
             """not support other country"""
