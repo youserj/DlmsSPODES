@@ -285,7 +285,7 @@ class ObjectRelation:
 
 
 @lru_cache()
-def _create_map(maps: CosemClassMap | tuple[CosemClassMap]) -> dict[int, CosemClassMap]:
+def _create_map(maps: ClassMap | tuple[ClassMap]) -> dict[int, CosemClassMap]:
     if isinstance(maps, tuple):
         return {int(map_[0].CLASS_ID): map_ for map_ in maps}
     else:
@@ -367,7 +367,7 @@ def get_func_map(for_create_map: dict) -> FUNC_MAP:
     return ret
 
 
-__func_map_for_create: dict[FOR_C | FOR_CD | FOR_CDE | FOR_BCDE, tuple[CosemClassMap, ...] | CosemClassMap] = {
+__func_map_for_create: dict[FOR_C | FOR_CD | FOR_CDE | FOR_BCDE, tuple[ClassMap, ...] | ClassMap] = {
     # abstract
     (0, 0, 1): DataMap,
     (0, 0, 2): DataMap,
@@ -704,15 +704,14 @@ class Collection:
     def __hash__(self):
         return hash((self.__manufacturer, self.__server_id, self.__collection_ver))
 
-    def copy(self, ldn: octet_string.LDN = None) -> Self:
+    def copy(self) -> Self:
         new_collection = Collection(
             dlms_ver=self.__dlms_ver,
             country=self.__country,
             cntr_ver=self.__country_ver,
             man=self.__manufacturer,
             s_id=self.__server_id,
-            c_ver=self.__collection_ver,
-            ldn=ldn)
+            c_ver=self.__collection_ver)
         new_collection.set_spec()
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
@@ -1575,7 +1574,7 @@ class Collection:
         except exc.NoObject as e:
             return False
 
-    def copy_objects_attr_values_from(self, other: Collection) -> bool:
+    def copy_objects_attr_values_from(self, other: Self) -> bool:
         """ Copy collections values and return True if all was writen """
         if len(other) != 0:
             return bool(reduce(lambda a, b: a or b, map(self.copy_obj_attr_values_from, other.values())))
@@ -2752,16 +2751,6 @@ def get_relation_group(ln: cst.LogicalName) -> RelationGroup:
 
 
 DLMSObjectContainer: TypeAlias = Collection | list[InterfaceClass] | filter
-
-
-def class_id_filter(container: DLMSObjectContainer, class_id: ClassID) -> filter[InterfaceClass]:
-    """return filter by class_id"""
-    return filter(lambda obj: obj.CLASS_ID == class_id, container)
-
-
-def media_id_filter(container: DLMSObjectContainer, media_id: media_id.MediaId) -> filter[InterfaceClass]:
-    return filter(lambda obj: obj.logical_name.a == media_id, container)
-
 
 @dataclass
 class Template:

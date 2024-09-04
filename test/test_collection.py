@@ -7,7 +7,6 @@ from src.DLMS_SPODES.types import cdt, cst, ut
 from src.DLMS_SPODES.cosem_interface_classes import collection, overview, ln_pattern
 from src.DLMS_SPODES import cosem_interface_classes
 from src.DLMS_SPODES.obis import media_id
-from src.DLMS_SPODES.version import AppVersion
 from src.DLMS_SPODES.exceptions import NeedUpdate, NoObject
 
 
@@ -24,11 +23,11 @@ server_1_6_2 = collection.ServerVersion(
         value=cdt.OctetString(bytearray(b"1.6.2")))
 
 serID_M2M_1 = collection.ServerId(
-        par=bytes.fromhex("0000600102ff02"),
+        par=bytes.fromhex("0000600101ff02"),
         value=cdt.OctetString(bytearray(b'M2M_1')))
 
 serID_M2M_3 = collection.ServerId(
-        par=bytes.fromhex("0000600102ff02"),
+        par=bytes.fromhex("0000600101ff02"),
         value=cdt.OctetString(bytearray(b'M2M_3')))
 
 col_M2M1_1_5_15 = collection.get_collection(
