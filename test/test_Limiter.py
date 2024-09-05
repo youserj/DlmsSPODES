@@ -12,7 +12,7 @@ class TestType(unittest.TestCase):
         col = collection.Collection()
         col.set_manufacturer(b'KPZ')
         col.set_server_ver(0, AppVersion(1, 4, 0))
-        col.set_spec()
+        col.spec_map = col.get_spec()
         tem = col.add(class_id=ClassID.REGISTER,
                 version=Version.V0,
                 logical_name=cst.LogicalName.from_obis("0.0.96.9.0.255"))

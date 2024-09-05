@@ -648,8 +648,8 @@ class ServerVersion:
         if isinstance(self.value, (cdt.OctetString, cdt.VisibleString)):
             return AppVersion.from_str(self.value.to_str())
 
-    def __eq__(self, other: Self):
-        if self.par == other.par and self.value == other.value:
+    def __eq__(self, other: Self | None):
+        if other is not None and self.par == other.par and self.value == other.value:
             return True
         else:
             return False
@@ -670,7 +670,7 @@ class Collection:
     """according to Active Firmware version"""
     __container: dict[bytes, InterfaceClass]
     __const_objs: int
-    __spec: str
+    spec_map: str
     __collection_ver: ServerVersion | None
 
     def __init__(self,
@@ -690,7 +690,7 @@ class Collection:
         self.__server_id = s_id
         self.__server_ver = s_ver
         """key: instance of 0.b.2.0.1.255, value AppVersion"""
-        self.__spec = "DLMS_6"
+        self.spec_map = "DLMS_6"
         self.__container = dict()
         """ all DLMS objects container with obis key """
         self.add(
@@ -712,7 +712,7 @@ class Collection:
             man=self.__manufacturer,
             s_id=self.__server_id,
             c_ver=self.__collection_ver)
-        new_collection.set_spec()
+        new_collection.spec_map = self.get_spec()
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
         for obj in self.__container.values():
@@ -807,7 +807,7 @@ class Collection:
             self.__server_id = value
         else:
             if value != self.__server_id:
-                raise ValueError(F"got server type: {value}, expected {self.__server_id}")
+                raise ValueError(F"got server ID: {value}, expected {self.__server_id}")
             else:
                 """success validation"""
 
@@ -842,7 +842,7 @@ class Collection:
     def __str__(self):
         return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country.name}, country specific version: {self.__country_ver}, " \
                F"manufacturer: {self.__manufacturer}, server ID: {self.__server_id}, server/collection Version: {self.__server_ver}/{self.__collection_ver}, " \
-               F"uses specification: {self.__spec}"
+               F"uses specification: {self.spec_map}"
 
     def __iter__(self) -> Iterator[ic.COSEMInterfaceClasses]:
         return iter(self.__container.values())
@@ -876,8 +876,7 @@ class Collection:
             self.set_collection_ver(ServerVersion(
                 par=bytes.fromhex(server_ver_node.attrib.get("par", "0000000201ff02")),
                 value=value))
-        self.set_spec()
-
+        self.spec_map = self.get_spec()
         return root_version
 
     @classmethod
@@ -1288,25 +1287,24 @@ class Collection:
         with open(file_name, "wb") as f:
             f.write(xml_string)
 
-    def set_spec(self):
-        """set functional map to specification by identification fields"""
-        match self.dlms_ver:
-            case 6: self.__spec = "DLMS_6"
-            case _: raise ValueError(F"unsupport {self.dlms_ver=}")
-        if self.country == CountrySpecificIdentifiers.RUSSIA:
-            if self.country_ver == ServerVersion(
-                    par=b'\x00\x00`\x01\x06\xff\x02',
-                    value=cdt.OctetString(bytearray(b"3.0"))
-            ):
-                self.__spec = "SPODES_3"
-            match self.manufacturer:
-                case b"KPZ":
-                    self.__spec = "KPZ"
-                case b"101", b"102", b"103", b"104":
-                    self.__spec = "KPZ1"
-            pass
-        else:
-            """not support other country"""
+    def get_spec(self) -> str:
+        """return functional map to specification by identification fields"""
+        match self.manufacturer:
+            case b"KPZ":
+                return "KPZ"
+            case b"101", b"102", b"103", b"104":
+                return "KPZ1"
+            case _:
+                if self.country == CountrySpecificIdentifiers.RUSSIA:
+                    if self.country_ver == ServerVersion(
+                            par=b'\x00\x00`\x01\x06\xff\x02',
+                            value=cdt.OctetString(bytearray(b"3.0"))
+                    ):
+                        return "SPODES_3"
+                elif self.dlms_ver == 6:
+                    return "DLMS_6"
+                else:
+                    raise exc.DLMSException("unknown specification")
 
     def add_if_missing(self, class_id: ut.CosemClassId,
                        version: cdt.Unsigned | None,
@@ -1339,7 +1337,7 @@ class Collection:
                 class_id=class_id,
                 version=self.find_version(class_id) if version is None else version,
                 ln=logical_name,
-                func_map=func_maps[self.__spec])(logical_name)
+                func_map=func_maps[self.spec_map])(logical_name)
             new_object.collection = self
             self.__container[logical_name.contents] = new_object
             logger.info(F'Create {new_object}')

@@ -37,7 +37,7 @@ class TestType(unittest.TestCase):
     def test_DisplayReadout(self):
         col = collection.Collection()
         col.set_manufacturer(b"KPZ")
-        col.set_spec()
+        col.spec_map = col.get_spec()
         readout = col.add(class_id=overview.ClassID.PROFILE_GENERIC, version=overview.Version.V1, logical_name=cst.LogicalName.from_obis('0.0.21.0.1.255'))
         col.add(class_id=overview.ClassID.REGISTER, version=overview.Version.V0, logical_name=cst.LogicalName.from_obis('1.0.1.8.0.255'))
         col.add(class_id=overview.ClassID.REGISTER, version=overview.Version.V0, logical_name=cst.LogicalName.from_obis('1.0.1.8.1.255'))

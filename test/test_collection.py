@@ -53,7 +53,7 @@ class TestType(unittest.TestCase):
         col = collection.Collection()
         col.set_manufacturer(b"KPZ")
         col.set_server_ver(server_1_5_15)
-        col.set_spec()
+        col.spec_map = col.get_spec()
         ver_obj = col.add(class_id=ut.CosemClassId(1),
                           version=cdt.Unsigned(0),
                           logical_name=cst.LogicalName.from_obis("0.0.96.1.6.255"))
@@ -151,7 +151,7 @@ class TestType(unittest.TestCase):
         col = collection.Collection()
         col.set_manufacturer(b"KPZ")
         col.set_server_ver(server_1_4_0)
-        col.set_spec()
+        col.spec_map = col.get_spec()
         ass_obj = col.add(class_id=overview.ClassID.ASSOCIATION_LN,
                           version=overview.Version.V1,
                           logical_name=cst.LogicalName.from_obis("0.0.40.0.3.255"))

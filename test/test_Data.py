@@ -25,7 +25,7 @@ class TestType(unittest.TestCase):
         col.set_country("3.0")
         col.server_ver = AppVersion(1, 3, 0)
         col.server_type = cdt.OctetString("4d324d5f33")
-        col.set_spec()
+        col.spec_map = col.get_spec()
         col.add(class_id=ut.CosemClassId(1), version=cdt.Unsigned(0), logical_name=cst.LogicalName.from_obis("0.0.96.11.4.255"))
         obj = col.get_object("0.0.96.11.4.255")
         obj.set_attr(2, b'\x06\x00\x00\x00\x02')

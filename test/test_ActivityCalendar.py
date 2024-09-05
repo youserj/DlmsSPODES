@@ -24,7 +24,7 @@ class TestType(unittest.TestCase):
         col.set_server_ver(collection.ServerVersion(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.4.0"))))
-        col.set_spec()
+        col.spec_map = col.get_spec()
         tem = col.add(class_id=ClassID.REGISTER,
                 version=Version.V0,
                 logical_name=cst.LogicalName.from_obis("0.0.96.9.0.255"))
