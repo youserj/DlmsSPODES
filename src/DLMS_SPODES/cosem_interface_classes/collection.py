@@ -784,10 +784,10 @@ class Collection:
                 """success validation"""
 
     @property
-    def server_id(self) -> FirmwareID | None:
+    def firm_id(self) -> FirmwareID | None:
         return self.__firm_id
 
-    def set_server_id(self, value: FirmwareID, force: bool = False):
+    def set_firm_id(self, value: FirmwareID, force: bool = False):
         if not self.__firm_id or force:
             self.__firm_id = value
         else:
@@ -797,13 +797,13 @@ class Collection:
                 """success validation"""
 
     @property
-    def server_ver(self) -> FirmwareVersion:
+    def firm_ver(self) -> FirmwareVersion:
         return self.__firm_ver
 
     def clear_server_ver(self):
         self.__firm_ver = None
 
-    def set_server_ver(self, value: FirmwareVersion, force: bool = False):
+    def set_firm_ver(self, value: FirmwareVersion, force: bool = False):
         if self.__firm_ver is None or force:
             self.__firm_ver = value
         elif value != self.__firm_ver:

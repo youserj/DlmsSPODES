@@ -11,7 +11,7 @@ class TestType(unittest.TestCase):
     def test_Limiter(self):
         col = collection.Collection()
         col.set_manufacturer(b'KPZ')
-        col.set_server_ver(0, AppVersion(1, 4, 0))
+        col.set_firm_ver(0, AppVersion(1, 4, 0))
         col.spec_map = col.get_spec()
         tem = col.add(class_id=ClassID.REGISTER,
                 version=Version.V0,

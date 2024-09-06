@@ -52,7 +52,7 @@ class TestType(unittest.TestCase):
     def test_add(self):
         col = collection.Collection()
         col.set_manufacturer(b"KPZ")
-        col.set_server_ver(server_1_5_15)
+        col.set_firm_ver(server_1_5_15)
         col.spec_map = col.get_spec()
         ver_obj = col.add(class_id=ut.CosemClassId(1),
                           version=cdt.Unsigned(0),
@@ -131,7 +131,7 @@ class TestType(unittest.TestCase):
     def test_AssociationLN(self):
         col = collection.Collection()
         col.set_manufacturer(b"KPZ")
-        col.set_server_ver(server_1_4_0)
+        col.set_firm_ver(server_1_4_0)
         col.spec_map = col.get_spec()
         ass_obj = col.add(class_id=overview.ClassID.ASSOCIATION_LN,
                           version=overview.Version.V1,

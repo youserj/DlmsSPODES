@@ -21,7 +21,7 @@ class TestType(unittest.TestCase):
 
 
         col.set_manufacturer(b'KPZ')
-        col.set_server_ver(collection.FirmwareVersion(
+        col.set_firm_ver(collection.FirmwareVersion(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.4.0"))))
         col.spec_map = col.get_spec()
