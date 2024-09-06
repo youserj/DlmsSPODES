@@ -12,16 +12,16 @@ class TestType(unittest.TestCase):
     def test_Limiter(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=collection.ServerId(
+            server_type=collection.FirmwareID(
                 par=bytes.fromhex("0000600102ff02"),
                 value=cdt.OctetString("4d324d5f33")),
-            server_ver=collection.ServerVersion(
+            server_ver=collection.FirmwareVersion(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.4.15"))))
 
 
         col.set_manufacturer(b'KPZ')
-        col.set_server_ver(collection.ServerVersion(
+        col.set_server_ver(collection.FirmwareVersion(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.4.0"))))
         col.spec_map = col.get_spec()

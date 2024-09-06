@@ -57,12 +57,9 @@ from .single_action_schedule import SingleActionSchedule
 from .special_days_table import SpecialDaysTable
 from .tcp_udp_setup import TCPUDPSetup
 from .. import exceptions as exc
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
 from ..relation_to_OBIS import get_name
 from ..cosem_interface_classes import implementations as impl
 from ..cosem_interface_classes.overview import ClassID, Version, CountrySpecificIdentifiers
-from ..enums import TagsName
 from . import obis as o, ln_pattern
 from .. import pdu_enums as pdu
 from ..config_parser import config, get_values
@@ -103,6 +100,7 @@ ObjectTreeMode: TypeAlias = Literal["", "m", "g", "c", "mc", "cm", "gm", "gc", "
 SortMode: TypeAlias = Literal["l", "n", "c", "cl", "cn"]
 
 
+# todo: make new class ClassMap(for field Collection.spec_map). fields: name, version, dict(current version ClassMap)
 class ClassMap(dict):
     def __hash__(self):
         return hash(tuple(it.hash_ for it in self.values()))
@@ -624,71 +622,59 @@ def get_filtered(objects: Iterable[InterfaceClass],
         new_list.append(obj)
     return new_list
 
-@dataclass
-class ServerId:
+
+@dataclass(unsafe_hash=True, frozen=True)
+class ParameterValue:
     par: bytes
     value: cdt.CommonDataType
 
-    def __eq__(self, other: Self):
-        if self.par == other.par and self.value == other.value:
-            return True
-        else:
-            return False
+    # def __eq__(self, other: Self | None):
+    #     if other is not None and self.par == other.par and self.value == other.value:
+    #         return True
+    #     else:
+    #         return False
 
-    def __hash__(self):
-        return hash(self.par+self.value.encoding)
+    def __str__(self):
+        return F"{'.'.join(map(str, self.par[:6]))}:{self.par[6]} - {self.value}"
 
 
-@dataclass
-class ServerVersion:
-    par: bytes
-    value: cdt.CommonDataType
+class FirmwareID(ParameterValue):
+    """"""
 
-    def get_semver(self) -> AppVersion | None:
-        if isinstance(self.value, (cdt.OctetString, cdt.VisibleString)):
-            return AppVersion.from_str(self.value.to_str())
 
-    def __eq__(self, other: Self | None):
-        if other is not None and self.par == other.par and self.value == other.value:
-            return True
-        else:
-            return False
-
-    def __hash__(self):
-        return hash(self.par+self.value.encoding)
+class FirmwareVersion(ParameterValue):
+    def get_semver(self) -> SemVer:
+        return SemVer.parse(self.value.contents, optional_minor_and_patch=True)
 
 
 class Collection:
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers
-    __country_ver: ServerVersion | None
+    __country_ver: FirmwareVersion | None
     __manufacturer: bytes | None
     """according to LDN manufacturer field"""
-    __server_id: ServerId | None
+    __firm_id: FirmwareID | None
     """according to Active Firmware identifier"""
-    __server_ver: ServerVersion | None
+    __firm_ver: FirmwareVersion | None
     """according to Active Firmware version"""
     __container: dict[bytes, InterfaceClass]
     __const_objs: int
     spec_map: str
-    __collection_ver: ServerVersion | None
 
     def __init__(self,
                  dlms_ver: int = 6,
                  country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.RUSSIA,
-                 cntr_ver: ServerVersion = None,
+                 cntr_ver: FirmwareVersion = None,
                  man: bytes = None,
-                 s_id: ServerId = None,
-                 s_ver: ServerVersion = None,
-                 c_ver: ServerVersion = None):
+                 f_id: FirmwareID = None,
+                 f_ver: FirmwareVersion = None):
         self.__dlms_ver = dlms_ver
-        self.__collection_ver = c_ver
         self.__manufacturer = man
         self.__country = country
         self.__country_ver = cntr_ver
         """country version specification"""
-        self.__server_id = s_id
-        self.__server_ver = s_ver
+        self.__firm_id = f_id
+        self.__firm_ver = f_ver
         """key: instance of 0.b.2.0.1.255, value AppVersion"""
         self.spec_map = "DLMS_6"
         self.__container = dict()
@@ -702,7 +688,7 @@ class Collection:
         return hash(self) == hash(other)
 
     def __hash__(self):
-        return hash((self.__manufacturer, self.__server_id, self.__collection_ver))
+        return hash((self.__manufacturer, self.__firm_id, self.__firm_ver))
 
     def copy(self) -> Self:
         new_collection = Collection(
@@ -710,9 +696,8 @@ class Collection:
             country=self.__country,
             cntr_ver=self.__country_ver,
             man=self.__manufacturer,
-            s_id=self.__server_id,
-            c_ver=self.__collection_ver)
-        new_collection.spec_map = self.get_spec()
+            f_id=self.__firm_id)
+        new_collection.spec_map = self.spec_map
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
         for obj in self.__container.values():
@@ -788,7 +773,7 @@ class Collection:
     def country_ver(self):
         return self.__country_ver
 
-    def set_country_ver(self, value: ServerVersion):
+    def set_country_ver(self, value: FirmwareVersion):
         """country version specification"""
         if not self.__country_ver:
             self.__country_ver = value
@@ -799,509 +784,57 @@ class Collection:
                 """success validation"""
 
     @property
-    def server_id(self) -> ServerId | None:
-        return self.__server_id
+    def server_id(self) -> FirmwareID | None:
+        return self.__firm_id
 
-    def set_server_id(self, value: ServerId, force: bool = False):
-        if not self.__server_id or force:
-            self.__server_id = value
+    def set_server_id(self, value: FirmwareID, force: bool = False):
+        if not self.__firm_id or force:
+            self.__firm_id = value
         else:
-            if value != self.__server_id:
-                raise ValueError(F"got server ID: {value}, expected {self.__server_id}")
+            if value != self.__firm_id:
+                raise ValueError(F"got server ID: {value}, expected {self.__firm_id}")
             else:
                 """success validation"""
 
     @property
-    def server_ver(self) -> ServerVersion:
-        return self.__server_ver
+    def server_ver(self) -> FirmwareVersion:
+        return self.__firm_ver
 
     def clear_server_ver(self):
-        self.__server_ver = None
+        self.__firm_ver = None
 
-    def set_server_ver(self, value: ServerVersion, force: bool = False):
-        if self.__server_ver is None or force:
-            self.__server_ver = value
-        elif value != self.__server_ver:
-            raise ValueError(F"got server type: {value}, expected {self.__server_ver}")
-        else:
-            """success validation"""
-
-    @property
-    def collection_ver(self) -> ServerId | None:
-        return self.__collection_ver
-
-    def set_collection_ver(self, value: ServerVersion):
-        """once setting collection version from file"""
-        if not self.__collection_ver:
-            self.__collection_ver = value
-        elif value != self.__collection_ver:
-            raise ValueError(F"got collection version: {value}, already exist {self.__collection_ver}")
+    def set_server_ver(self, value: FirmwareVersion, force: bool = False):
+        if self.__firm_ver is None or force:
+            self.__firm_ver = value
+        elif value != self.__firm_ver:
+            raise ValueError(F"got server type: {value}, expected {self.__firm_ver}")
         else:
             """success validation"""
 
     def __str__(self):
         return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country.name}, country specific version: {self.__country_ver}, " \
-               F"manufacturer: {self.__manufacturer}, server ID: {self.__server_id}, server/collection Version: {self.__server_ver}/{self.__collection_ver}, " \
+               F"manufacturer: {self.__manufacturer}, firmwareID: {self.__firm_id}, firmwareVersion: {self.__firm_ver}, " \
                F"uses specification: {self.spec_map}"
 
     def __iter__(self) -> Iterator[ic.COSEMInterfaceClasses]:
         return iter(self.__container.values())
 
-    def _set_par_from_xml(self, e_t: ET.Element) -> AppVersion:
-        """"""
-        root_version: AppVersion = AppVersion.from_str(e_t.attrib.get('version', '1.0.0'))
-        if (dlms_ver := e_t.findtext("dlms_ver")) is not None:
-            self.set_dlms_ver(int(dlms_ver))
-        if (country := e_t.findtext("country")) is not None:
-            self.set_country(CountrySpecificIdentifiers(int(country)))
-        if (country_ver := e_t.findtext("country_ver")) is not None:
-            self.set_country_ver(AppVersion.from_str(country_ver))
-        man_node = e_t.find("manufacturer")
-        if root_version < AppVersion(5, 0):
-            self.set_manufacturer(man_node.text.encode("utf-8"))
-            server_node = e_t
-        else:
-            self.set_manufacturer(bytes.fromhex(man_node.text))
-            server_node = man_node
-        if (server_type_node := server_node.find("server_type")) is not None:
-            self.set_server_id(ServerId(
-                par=bytes.fromhex("0000600101ff02") if (root_version < AppVersion(5, 0)) else bytes.fromhex(server_type_node.attrib.get("par", "0000000200ff02")),
-                value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_type_node.text))[0]))
-        if (server_ver_node := server_node.find("server_ver")) is not None:
-            if root_version < AppVersion(5, 0):
-                # value = AppVersion.from_str(server_ver_node.text)
-                value = cdt.OctetString(bytearray(server_ver_node.text.encode(encoding="ascii")))
-            else:
-                value = cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_ver_node.text))[0]
-            self.set_collection_ver(ServerVersion(
-                par=bytes.fromhex(server_ver_node.attrib.get("par", "0000000201ff02")),
-                value=value))
-        self.spec_map = self.get_spec()
-        return root_version
-
-    @classmethod
-    def from_xml(cls, filename: os.DirEntry | str) -> Self:
-        """ append objects from xml file """
-        tree = ET.parse(filename)
-        objects = tree.getroot()
-        new = cls()
-        if objects.tag != TagsName.DEVICE_ROOT.value:
-            raise ValueError(F"ERROR: Root tag got {objects.tag}, expected {TagsName.DEVICE_ROOT.value}")
-        root_version = new._set_par_from_xml(objects)
-        logger.info(F'Версия: {root_version}, file: {filename}')
-        match root_version:
-            case AppVersion(3, 0 | 1 | 2):
-                attempts: iter = count(3, -1)
-                """ attempts counter """
-                while len(objects) != 0 and next(attempts):
-                    logger.info(F'{attempts=}')
-                    for obj in objects.findall('object'):
-                        ln: str = obj.attrib.get('ln', 'is absence')
-                        class_id: str = obj.findtext('class_id')
-                        if not class_id:
-                            logger.warning(F"skip create DLMS {ln} from Xml. Class ID is absence")
-                            continue
-                        version: str | None = obj.findtext('version')
-                        try:
-                            logical_name: cst.LogicalName = cst.LogicalName.from_obis(ln)
-                            if not new.is_in_collection(logical_name):
-                                new_object = new.add(class_id=ut.CosemClassId(class_id),
-                                                     version=None if version is None else cdt.Unsigned(version),
-                                                     logical_name=logical_name)
-                            else:
-                                new_object = new.__get_object(logical_name.contents)
-                        except TypeError as e:
-                            logger.error(F'Object {obj.attrib["name"]} not created : {e}')
-                            continue
-                        except ValueError as e:
-                            logger.error(F'Object {obj.attrib["name"]} not created. {class_id=} {version=} {ln=}: {e}')
-                            continue
-                        indexes: list[int] = list()
-                        """ got attributes indexes for current object """
-                        for attr in obj.findall('attribute'):
-                            index: str = attr.attrib.get('index')
-                            if index.isdigit():
-                                indexes.append(int(index))
-                            else:
-                                raise ValueError(F'ERROR: for {new_object.logical_name if new_object is not None else ""} got index {index} and it is not digital')
-                            try:
-                                match len(attr.text), new_object.get_attr_element(indexes[-1]).DATA_TYPE:
-                                    case 1 | 2, ut.CHOICE():
-                                        if new_object.get_attr(indexes[-1]) is None:
-                                            new_object.set_attr(indexes[-1], int(attr.text))
-                                        else:
-                                            """not need set"""
-                                    case 1 | 2, data_type if data_type.TAG[0] == int(attr.text): """ ordering by old"""
-                                    case 1 | 2, data_type:                                       raise ValueError(F'Got {attr.text} attribute Tag, expected {data_type}')
-                                    case _:
-                                        record_time: str = attr.attrib.get('record_time')
-                                        if record_time is not None:
-                                            new_object.set_record_time(indexes[-1], bytes.fromhex(record_time))
-                                        new_object.set_attr(indexes[-1], bytes.fromhex(attr.text))
-                                obj.remove(attr)
-                            except ut.UserfulTypesException as e:
-                                if attr.attrib.get("forced", None):
-                                    new_object.set_attr_force(indexes[-1], cdt.get_common_data_type_from(int(attr.text).to_bytes(1, "big"))())
-                                logger.warning(F"set to {new_object} attr: {indexes[-1]} forced value after. {e}.")
-                            except exc.NoObject as e:
-                                logger.error(F"Can't fill {new_object} attr: {indexes[-1]}. Skip. {e}.")
-                                break
-                            except exc.ITEApplication as e:
-                                logger.error(F"Can't fill {new_object} attr: {indexes[-1]}. {e}")
-                            except IndexError:
-                                logger.error(F'Object "{new_object}" not has attr: {index}')
-                            except TypeError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not write, encoding wrong : {e}')
-                            except ValueError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                            except AttributeError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                        if len(obj.findall('attribute')) == 0:
-                            objects.remove(obj)
-                    logger.info(F'Not parsed DLMS objects: {len(objects)}')
-            case AppVersion(4, 0):
-                attempts: iter = count(3, -1)
-                """ attempts counter """
-                while len(objects) != 0 and next(attempts):
-                    logger.info(F'{attempts=}')
-                    for obj in objects.findall("obj"):
-                        ln: str = obj.attrib.get('ln', 'is absence')
-                        version: str | None = obj.findtext("ver")
-                        try:
-                            logical_name: cst.LogicalName = cst.LogicalName.from_obis(ln)
-                            if version:  # only for AssociationLN
-                                new_object: AssociationLN = new.add_if_missing(
-                                    class_id=ClassID.ASSOCIATION_LN,
-                                    version=cdt.Unsigned(version),
-                                    logical_name=logical_name)
-                                new.add_if_missing(  # current association with know version
-                                    class_id=ClassID.ASSOCIATION_LN,
-                                    version=cdt.Unsigned(version),
-                                    logical_name=cst.LogicalName.from_obis("0.0.40.0.0.255"))
-                            else:
-                                new_object = new.__get_object(logical_name.contents)
-                        except TypeError as e:
-                            logger.error(F'Object {obj.attrib["ln"]} not created : {e}')
-                            continue
-                        except ValueError as e:
-                            logger.error(F'Object {obj.attrib["ln"]} not created. {version=} {ln=}: {e}')
-                            continue
-                        for attr in obj.findall("attr"):
-                            i: int = int(attr.attrib.get("i"))
-                            try:
-                                if len(attr.text) <= 2:  # set only type with default value
-                                    data_type = new_object.get_attr_element(i).DATA_TYPE
-                                    if isinstance(data_type, ut.CHOICE):
-                                        new_object.set_attr(i, int(attr.text))
-                                    elif data_type.TAG[0] == int(attr.text):
-                                        """ ordering by old"""
-                                    else:
-                                        raise ValueError(F'Got {attr.text} attribute Tag, expected {data_type}')
-                                else:  # set common value
-                                    new_object.set_attr(i, bytes.fromhex(attr.text))
-                                    if new_object.CLASS_ID == ClassID.ASSOCIATION_LN and i == 2:  # setup new objects from AssociationLN.object_list
-                                        for obj_el in new_object.object_list:
-                                            obj_el: ObjectListElement
-                                            new.add_if_missing(
-                                                class_id=obj_el.class_id,
-                                                version=obj_el.version,
-                                                logical_name=obj_el.logical_name)
-                                obj.remove(attr)
-                            except ut.UserfulTypesException as e:
-                                if attr.attrib.get("forced", None):
-                                    new_object.set_attr_force(i, cdt.get_common_data_type_from(int(attr.text).to_bytes(1, "big"))())
-                                logger.warning(F"set to {new_object} attr: {i} forced value after. {e}.")
-                            except exc.NoObject as e:
-                                logger.error(F"Can't fill {new_object} attr: {i}. Skip. {e}.")
-                                break
-                            except exc.ITEApplication as e:
-                                logger.error(F"Can't fill {new_object} attr: {i}. {e}")
-                            except IndexError:
-                                logger.error(F'Object "{new_object}" not has attr: {i}')
-                            except TypeError as e:
-                                logger.error(F'Object {new_object} attr:{i} do not write, encoding wrong : {e}')
-                            except ValueError as e:
-                                logger.error(F'Object {new_object} attr:{i} do not fill: {e}')
-                            except AttributeError as e:
-                                logger.error(F'Object {new_object} attr:{i} do not fill: {e}')
-                        if len(obj.findall("attr")) == 0:
-                            objects.remove(obj)
-                    logger.info(F'Not parsed DLMS objects: {len(objects)}')
-            case _ as error:
-                raise exc.VersionError(error, additional='Xml')
-        return new
-
-    def from_xml2(self, filename: str):
-        """ set attribute values from xml. validation ID's """
-        tree = ET.parse(filename)
-        objects = tree.getroot()
-        if objects.tag != TagsName.DEVICE_ROOT.value:
-            raise ValueError(F"ERROR: Root tag got {objects.tag}, expected {TagsName.DEVICE_ROOT.value}")
-        root_version = self._set_par_from_xml(objects)
-        logger.info(F'Версия: {root_version}, file: {filename.split("/")[-1]}')
-        match root_version:
-            case AppVersion(2, 0 | 1 | 2):
-                attempts: iter = count(3, -1)
-                """ attempts counter """
-                while len(objects) != 0 and next(attempts):
-                    logger.info(F'{attempts=}')
-                    for obj in objects.findall('object'):
-                        ln: str = obj.attrib.get('ln', 'is absence')
-                        class_id: str = obj.findtext('class_id')
-                        if not class_id:
-                            logger.warning(F"skip create DLMS {ln} from Xml. Class ID is absence")
-                            continue
-                        version: str | None = obj.findtext('version')
-                        try:
-                            logical_name: cst.LogicalName = cst.LogicalName.from_obis(ln)
-                            if not self.is_in_collection(logical_name):
-                                new_object = self.add(
-                                    class_id=ut.CosemClassId(class_id),
-                                    version=None if version is None else cdt.Unsigned(version),
-                                    logical_name=cst.LogicalName.from_obis(ln))
-                            else:
-                                new_object = self.get_object(logical_name.contents)
-                        except TypeError as e:
-                            logger.error(F'Object {obj.attrib["name"]} not created : {e}')
-                            continue
-                        except ValueError as e:
-                            logger.error(F'Object {obj.attrib["name"]} not created. {class_id=} {version=} {ln=}: {e}')
-                            continue
-                        indexes: list[int] = list()
-                        """ got attributes indexes for current object """
-                        for attr in obj.findall('attribute'):
-                            index: str = attr.attrib.get('index')
-                            if index.isdigit():
-                                indexes.append(int(index))
-                            else:
-                                raise ValueError(F'ERROR: for {new_object.logical_name if new_object is not None else ""} got index {index} and it is not digital')
-                            try:
-                                match len(attr.text), new_object.get_attr_element(indexes[-1]).DATA_TYPE:
-                                    case 1 | 2, ut.CHOICE():
-                                        if new_object.get_attr(indexes[-1]) is None:
-                                            new_object.set_attr(indexes[-1], int(attr.text))
-                                        else:
-                                            """not need set"""
-                                    case 1 | 2, data_type if data_type.TAG[0] == int(attr.text):
-                                        """ ordering by old"""
-                                    case 1 | 2, data_type:
-                                        raise ValueError(F'Got {attr.text} attribute Tag, expected {data_type}')
-                                    case _:
-                                        record_time: str = attr.attrib.get('record_time')
-                                        if record_time is not None:
-                                            new_object.set_record_time(indexes[-1], bytes.fromhex(record_time))
-                                        new_object.set_attr(indexes[-1], bytes.fromhex(attr.text))
-                                obj.remove(attr)
-                            except exc.NoObject as e:
-                                logger.error(F"Can't fill {new_object} attr: {indexes[-1]}. Skip. {e}.")
-                                break
-                            except exc.ITEApplication as e:
-                                logger.error(F"Can't fill {new_object} attr: {indexes[-1]}. {e}")
-                            except IndexError:
-                                logger.error(F'Object "{new_object}" not has attr: {index}')
-                            except TypeError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not write, encoding wrong : {e}')
-                            except ValueError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                            except AttributeError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                        if len(obj.findall('attribute')) == 0:
-                            objects.remove(obj)
-                    logger.info(F'Not parsed DLMS objects: {len(objects)}')
-            case AppVersion(3, 1 | 2):
-                for obj in objects.findall('object'):
-                    ln: str = obj.attrib.get('ln', 'is absence')
-                    logical_name: cst.LogicalName = cst.LogicalName.from_obis(ln)
-                    if not self.is_in_collection(logical_name):
-                        logger.error(F"got object with {ln=} not find in collection. Skip it attribute values")
-                        continue
-                    else:
-                        new_object = self.get_object(logical_name)
-                    indexes: list[int] = list()
-                    """ got attributes indexes for current object """
-                    for attr in obj.findall('attribute'):
-                        index: str = attr.attrib.get('index')
-                        if index.isdigit():
-                            indexes.append(int(index))
-                        else:
-                            raise ValueError(F'ERROR: for obj with {ln=} got index {index} and it is not digital')
-                        try:
-                            new_object.set_attr(indexes[-1], bytes.fromhex(attr.text))
-                        except exc.NoObject as e:
-                            logger.error(F"Can't fill {new_object} attr: {indexes[-1]}. Skip. {e}.")
-                            break
-                        except exc.ITEApplication as e:
-                            logger.error(F"Can't fill {new_object} attr: {indexes[-1]}. {e}")
-                        except IndexError:
-                            logger.error(F'Object "{new_object}" not has attr: {index}')
-                        except TypeError as e:
-                            logger.error(F'Object {new_object} attr:{index} do not write, encoding wrong : {e}')
-                        except ValueError as e:
-                            logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                        except AttributeError as e:
-                            logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-            case AppVersion(4, 0):
-                for obj in objects.findall('object'):
-                    ln: str = obj.attrib.get("ln", 'is absence')
-                    logical_name: cst.LogicalName = cst.LogicalName.from_obis(ln)
-                    if not self.is_in_collection(logical_name):
-                        raise ValueError(F"got object with {ln=} not find in collection. Abort attribute setting")
-                    else:
-                        new_object = self.get_object(logical_name)
-                        for attr in obj.findall("attr"):
-                            index: int = int(attr.attrib.get("index"))
-                            try:
-                                new_object.set_attr(index, bytes.fromhex(attr.text))
-                            except exc.NoObject as e:
-                                logger.error(F"Can't fill {new_object} attr: {index}. Skip. {e}.")
-                                break
-                            except exc.ITEApplication as e:
-                                logger.error(F"Can't fill {new_object} attr: {index}. {e}")
-                            except IndexError:
-                                logger.error(F'Object "{new_object}" not has attr: {index}')
-                            except TypeError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not write, encoding wrong : {e}')
-                            except ValueError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                            except AttributeError as e:
-                                logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-            case _ as error:
-                raise exc.VersionError(error, additional='Xml')
-
-    def get_root_xml_element(self, root_tag: str = TagsName.DEVICE_ROOT.value) -> ET.Element:
-        objects = ET.Element(root_tag, attrib={'version': '5.0.0'})
-        ET.SubElement(objects, 'dlms_ver').text = str(self.dlms_ver)
-        ET.SubElement(objects, 'country').text = str(self.country.value)
-        if self.country_ver:
-            ET.SubElement(objects, 'country_ver').text = str(self.country_ver)
-        return objects
-
-    def get_collection_xml_elements(self, objects: ET.Element) -> ET.Element:
-        man_node = ET.SubElement(objects, 'manufacturer')
-        man_node.text = self.manufacturer.hex()
-        if self.server_id is not None:
-            server_type_node = ET.SubElement(man_node, 'server_type', attrib={"par": self.server_id.par.hex()})
-            server_type_node.text = self.server_id.value.encoding.hex()
-        if (ver := self.server_ver) is None:
-            ver = self.collection_ver
-        server_ver_node = ET.SubElement(man_node, 'server_ver', attrib={"par": ver.par.hex()})
-        server_ver_node.text = ver.value.encoding.hex()
-        return objects
-
-    def __get_base_xml_element(self, root_tag: str = TagsName.DEVICE_ROOT.value) -> ET.Element:
-        objects = self.get_root_xml_element(root_tag)
-        return self.get_collection_xml_elements(objects)
-
-    def to_xml2(self, file_name: str,
-                root_tag: str = TagsName.DEVICE_ROOT.value,
-                association_id: int = 3) -> bool:
-        """Save attributes WRITABLE and STATIC of client"""
-        objects = self.__get_base_xml_element(root_tag)
-        col = get(
-            m=self.manufacturer,
-            t=self.server_id,
-            ver=self.server_ver)
-        is_empty: bool = True
-        for desc in col.getASSOCIATION(association_id).object_list:
-            obj = self.get_object(desc)
-            object_node = None
-            for i, attr in obj.get_index_with_attributes():
-                if i == 1:
-                    """skip ln"""
-                elif obj.get_attr_element(i).classifier == ic.Classifier.DYNAMIC:
-                    """skip DYNAMIC attributes"""
-                elif not col.is_writable(obj.logical_name, i, 3):
-                    """skip not writable"""
-                elif col.get_object(obj.logical_name).get_attr(i) == attr:
-                    """skip not changed attr value"""
-                elif isinstance(attr, cdt.Array) and len(attr) == 0:
-                    """skip empty arrays"""
-                else:
-                    is_empty = False
-                    if not object_node:
-                        object_node = ET.SubElement(objects, 'object', attrib={'ln': str(obj.logical_name)})
-                    ET.SubElement(object_node, 'attr', attrib={'index': str(i)}).text = attr.encoding.hex()
-        if not is_empty:
-            # TODO: '<!DOCTYPE ITE_util_tree SYSTEM "setting.dtd"> or xsd
-            xml_string = ET.tostring(objects, encoding='cp1251', method='xml')
-            dom_xml = minidom.parseString(xml_string)
-            str_ = dom_xml.toprettyxml(indent="  ", encoding='cp1251')
-            with open(file_name, "wb") as f:
-                f.write(xml_string)
-        else:
-            logger.warning("nothing save. all attributes according with origin collection")
-        return not is_empty
-
-    def save_type(self,
-                  file_name: str,
-                  root_tag: str = TagsName.DEVICE_ROOT.value):
-        """ For concrete device save all attributes. For types only STATIC save """
-        objects = self.__get_base_xml_element(root_tag)
-        objs: dict[ln, set[int]] = dict()
-        """key: LN, value: not writable and readable container"""
-        for ass in filter(lambda it: it.logical_name.e != 0, self.get_objects_by_class_id(ClassID.ASSOCIATION_LN)):
-            for obj_el in ass.object_list:
-                if str(obj_el.logical_name) in ("0.0.40.0.0.255", "0.0.42.0.0.255"):
-                    """skip LDN and current_association"""
-                    continue
-                elif obj_el.logical_name in objs:
-                    """"""
-                else:
-                    objs[obj_el.logical_name] = set()
-                for access in obj_el.access_rights.attribute_access[1:]:  # without ln
-                    if not access.access_mode.is_writable() and access.access_mode.is_readable():
-                        objs[obj_el.logical_name].add(int(access.attribute_id))
-        o2 = list()
-        """container sort by AssociationLN first"""
-        for ln in objs.keys():
-            obj = self.get_object(ln)
-            if obj.CLASS_ID == ClassID.ASSOCIATION_LN:
-                o2.insert(0, obj)
-            else:
-                o2.append(obj)
-        for obj in o2:
-            object_node = ET.SubElement(objects, "obj", attrib={'ln': str(obj.logical_name)})
-            if obj.CLASS_ID == ClassID.ASSOCIATION_LN:
-                ET.SubElement(object_node, "ver").text = str(obj.VERSION)
-            v = objs[obj.logical_name]
-            for i, attr in filter(lambda it: it[0] != 1, obj.get_index_with_attributes()):
-                el: ic.ICAElement = obj.get_attr_element(i)
-                if el.classifier == ic.Classifier.STATIC and ((i in v) or el.DATA_TYPE == impl.profile_generic.CaptureObjectsDisplayReadout):
-                    if attr is None:
-                        logger.error(F"for {obj} attr: {i} not set, value is absense")
-                    else:
-                        ET.SubElement(object_node, "attr", attrib={"i": str(i)}).text = attr.encoding.hex()
-                elif isinstance(el.DATA_TYPE, ut.CHOICE):  # need keep all CHOICES types if possible
-                    if attr is None:
-                        logger.error(F"for {obj} attr: {i} type not set, value is absense")
-                    else:
-                        ET.SubElement(object_node, "attr", attrib={"i": str(i)}).text = str(attr.TAG[0])
-                else:
-                    logger.info(F"for {obj} attr: {i} value not need. skipped")
-            if len(object_node) == 0:
-                objects.remove(object_node)
-        # TODO: '<!DOCTYPE ITE_util_tree SYSTEM "setting.dtd"> or xsd
-        xml_string = ET.tostring(objects, encoding='cp1251', method='xml')
-        dom_xml = minidom.parseString(xml_string)
-        str_ = dom_xml.toprettyxml(indent="  ", encoding='cp1251')
-        with open(file_name, "wb") as f:
-            f.write(xml_string)
 
     def get_spec(self) -> str:
         """return functional map to specification by identification fields"""
         match self.manufacturer:
             case b"KPZ":
                 return "KPZ"
-            case b"101", b"102", b"103", b"104":
+            case b"101" | b"102" | b"103" | b"104":
                 return "KPZ1"
             case _:
                 if self.country == CountrySpecificIdentifiers.RUSSIA:
-                    if self.country_ver == ServerVersion(
+                    if self.country_ver == FirmwareVersion(
                             par=b'\x00\x00`\x01\x06\xff\x02',
                             value=cdt.OctetString(bytearray(b"3.0"))
                     ):
                         return "SPODES_3"
-                elif self.dlms_ver == 6:
+                if self.dlms_ver == 6:
                     return "DLMS_6"
                 else:
                     raise exc.DLMSException("unknown specification")
@@ -1390,40 +923,6 @@ class Collection:
             return self.__get_object(get_ln_contents(value))
         else:
             return None
-
-    def get_report(self,
-                   obj: ic.COSEMInterfaceClasses,
-                   par: bytes,
-                   a_val: cdt.CommonDataType | None
-                   ) -> cdt.Report:
-        """par: attribute_index, par1, par2, ..."""
-        rep = cdt.Report(str(a_val))
-        try:
-            if a_val is None:
-                rep.msg = _report["empty"]
-                rep.log = cdt.EMPTY_VAL
-            elif isinstance(a_val, cdt.ReportMixin):
-                rep = a_val.get_report()
-            else:
-                if unit := get_unit(obj.CLASS_ID, par):
-                    rep.unit = str(cdt.Unit(unit))
-                else:
-                    if s_u := self.get_scaler_unit(obj, par):
-                        rep.msg = str(int(a_val) * 10 ** int(s_u.scaler))
-                        rep.unit = str(s_u.unit)
-                    else:
-                        match obj.CLASS_ID, *par:
-                            case (ClassID.PROFILE_GENERIC, 3, _) | (ClassID.PROFILE_GENERIC, 6):
-                                a_val: structs.CaptureObjectDefinition
-                                obj = self.get_object(a_val.logical_name)
-                                rep.msg = F"{get_name(a_val.logical_name)}.{obj.get_attr_element(int(a_val.attribute_index))}"
-                            case _:
-                                pass
-                rep.log = cdt.Log(logging.INFO)
-        except Exception as e:
-            rep.log = cdt.Log(logging.ERROR, e)
-        finally:
-            return rep
 
     def get_report(self,
                    obj: ic.COSEMInterfaceClasses,
@@ -1933,302 +1432,12 @@ class Collection:
                 raise ValueError('not support')
         return ret
 
-    # def decode(self, file_name: str,
-    #            root_tag: str = TagsName.DEVICE_ROOT.value):
-    #     objects = self.__get_base_xml_element(root_tag)
-    #     objects.attrib["decode"] = "1"
-    #     for obj in self:
-    #         try:
-    #             object_node = ET.SubElement(
-    #                 objects,
-    #                 "object",
-    #                 attrib={
-    #                     "ln": str(obj.logical_name),
-    #                     "name": obj.NAME
-    #                 })
-    #             for i in tuple(indexes):
-    #                 attr = obj.get_attr(i)
-    #                 if isinstance(attr, cdt.CommonDataType):
-    #                     attr_el = ET.SubElement(
-    #                         object_node,
-    #                         "attr",
-    #                         {"name": obj.get_attr_element(i).NAME,
-    #                          "index": str(i)})
-    #                     if isinstance(attr, cdt.SimpleDataType):
-    #                         attr_el.text = str(attr)
-    #                     elif isinstance(attr, cdt.ComplexDataType):
-    #                         attr_el.attrib["type"] = "array" if attr.TAG == b'\x01' else "struct"  # todo: make better
-    #                         stack: list = [(attr_el, "attr_el_name", iter(attr))]
-    #                         while stack:
-    #                             node, name, value_it = stack[-1]
-    #                             value = next(value_it, None)
-    #                             if value:
-    #                                 if not isinstance(name, str):
-    #                                     name = next(name).NAME
-    #                                 if isinstance(value, cdt.Array):
-    #                                     stack.append((ET.SubElement(node,
-    #                                                                 "array",
-    #                                                                 attrib={"name": name}), "ar_name", iter(value)))
-    #                                 elif isinstance(value, cdt.Structure):
-    #                                     stack.append((ET.SubElement(node, "struct"), iter(value.ELEMENTS), iter(value)))
-    #                                 else:
-    #                                     ET.SubElement(node,
-    #                                                   "simple",
-    #                                                   attrib={"name": name}).text = str(value)
-    #                             else:
-    #                                 stack.pop()
-    #                     indexes.remove(i)
-    #                 else:
-    #                     logger.error(F"skip record {obj}:attr={i} with value={attr}")
-    #             if len(used[ln]) == 0:
-    #                 used.pop(ln)
-    #         except exc.NoObject as e:
-    #             logger.warning(F"skip obj with {ln=} in {collections.index(col)} collection: {e}")
-    #             continue
-    #     with open(
-    #             file_name,
-    #             mode="wb") as f:
-    #         f.write(ET.tostring(
-    #             element=objects,
-    #             encoding="utf-8",
-    #             method="xml",
-    #             xml_declaration=True))
-
-
-def get_base_template_xml_element(collections: list[Collection], root_tag: str = TagsName.DEVICE_ROOT.value) -> ET.Element:
-    objects = collections[0].get_root_xml_element(root_tag)
-    for col in collections:
-        col.get_collection_xml_elements(objects)
-    return objects
-
-
-def to_xml4(collections: list[Collection],
-            file_name: str,
-            used: UsedAttributes,
-            verified: bool = False):
-    """For template only"""
-    used_copy = copy.deepcopy(used)
-    objects = get_base_template_xml_element(
-        collections=collections,
-        root_tag=TagsName.TEMPLATE_ROOT.value)
-    objects.attrib["decode"] = "1"
-    if verified:
-        objects.attrib["verified"] = "1"
-    for col in collections:
-        for ln, indexes in copy.copy(used_copy).items():
-            try:
-                obj = col.get_object(ln)
-                object_node = ET.SubElement(
-                    objects,
-                    "object",
-                    attrib={"ln": str(obj.logical_name)})
-                for i in tuple(indexes):
-                    attr = obj.get_attr(i)
-                    if isinstance(attr, cdt.CommonDataType):
-                        attr_el = ET.SubElement(
-                            object_node,
-                            "attr",
-                            {"name": obj.get_attr_element(i).NAME,
-                             "index": str(i)})
-                        if isinstance(attr, cdt.SimpleDataType):
-                            attr_el.text = str(attr)
-                        elif isinstance(attr, cdt.ComplexDataType):
-                            attr_el.attrib["type"] = "array" if attr.TAG == b'\x01' else "struct"  # todo: make better
-                            stack: list = [(attr_el, "attr_el_name", iter(attr))]
-                            while stack:
-                                node, name, value_it = stack[-1]
-                                value = next(value_it, None)
-                                if value:
-                                    if not isinstance(name, str):
-                                        name = next(name).NAME
-                                    if isinstance(value, cdt.Array):
-                                        stack.append((ET.SubElement(node,
-                                                                    "array",
-                                                                    attrib={"name": name}), "ar_name", iter(value)))
-                                    elif isinstance(value, cdt.Structure):
-                                        stack.append((ET.SubElement(node, "struct"), iter(value.ELEMENTS), iter(value)))
-                                    else:
-                                        ET.SubElement(node,
-                                                      "simple",
-                                                      attrib={"name": name}).text = str(value)
-                                else:
-                                    stack.pop()
-                        indexes.remove(i)
-                    else:
-                        logger.error(F"skip record {obj}:attr={i} with value={attr}")
-                if len(indexes) == 0:
-                    used_copy.pop(ln)
-            except exc.NoObject as e:
-                logger.warning(F"skip obj with {ln=} in {collections.index(col)} collection: {e}")
-                continue
-        if len(used_copy) == 0:
-            logger.info(F"success decoding: used {collections.index(col)+1} from {len(collections)} collections")
-            break
-    if len(used_copy) != 0:
-        raise ValueError(F"failed decoding: {used_copy}")
-    with open(
-            file_name,
-            mode="wb") as f:
-        f.write(ET.tostring(
-            element=objects,
-            encoding="utf-8",
-            method="xml",
-            xml_declaration=True))
-
-
-def from_xml4(filename: str) -> tuple[list[Collection], UsedAttributes, bool]:
-    """ create collection from xml for template and UsedAttributes """
-    used: UsedAttributes = dict()
-    cols = list()
-    tree = ET.parse(filename)
-    objects = tree.getroot()
-    if objects.tag != TagsName.TEMPLATE_ROOT.value:
-        raise ValueError(F"ERROR: Root tag got {objects.tag}, expected {TagsName.TEMPLATE_ROOT.value}")
-    root_version: AppVersion = AppVersion.from_str(objects.attrib.get('version', '1.0.0'))
-    logger.info(F'Версия: {root_version}, file: {filename.split("/")[-1]}')
-    for man_node in objects.findall("manufacturer"):
-        for server_type_node in man_node.findall("server_type"):
-            for server_ver_node in server_type_node.findall("server_ver"):
-                if root_version < AppVersion(5, 0):
-                    man = man_node.text.encode("utf-8")
-                    ser_type = ServerId(
-                        par=bytes.fromhex("0000600101ff02"),
-                        value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_type_node.text))[0])
-                    ser_ver = ServerVersion(
-                        par=bytes.fromhex(server_ver_node.attrib.get("par", "0000000201ff02")),
-                        value=cdt.OctetString(bytearray(server_ver_node.text.encode(encoding="ascii"))))
-                else:
-                    man = bytes.fromhex(man_node.text)
-                    ser_type = ServerId(
-                        par=bytes.fromhex("0000000200ff02"),
-                        value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_type_node.text))[0])
-                    ser_ver = ServerVersion(
-                        par=bytes.fromhex(server_ver_node.attrib.get("par", "0000000201ff02")),
-                        value=cdt.get_instance_and_pdu_from_value(bytes.fromhex(server_ver_node.text))[0])
-                cols.append(get_collection(
-                    manufacturer=man,
-                    server_type=ser_type,
-                    server_ver=ser_ver))
-    match root_version:
-        case AppVersion(4, 0 | 1) | AppVersion(5, 0):
-            for obj in objects.findall('object'):
-                ln: str = obj.attrib.get("ln", 'is absence')
-                logical_name: cst.LogicalName = cst.LogicalName.from_obis(ln)
-                objs: list[ic.COSEMInterfaceClasses] = list()
-                for col in cols:
-                    if not col.is_in_collection(logical_name):
-                        logger.warning(F"got object with {ln=} not find in collection: {col}")
-                    else:
-                        objs.append(col.get_object(logical_name))
-                used[logical_name] = set()
-                for attr in obj.findall("attr"):
-                    index: int = int(attr.attrib.get("index"))
-                    used[logical_name].add(index)
-                    try:
-                        match attr.attrib.get("type", "simple"):
-                            case "simple":
-                                for new_object in objs:
-                                    new_object.set_attr(index, attr.text)
-                            case "array" | "struct":
-                                stack = [(list(), iter(attr))]
-                                while stack:
-                                    v1, v2 = stack[-1]
-                                    v = next(v2, None)
-                                    if v is None:
-                                        stack.pop()
-                                    elif v.tag == "simple":
-                                        v1.append(v.text)
-                                    else:
-                                        v1.append(list())
-                                        stack.append((v1[-1], iter(v)))
-                                for new_object in objs:
-                                    new_object.set_attr(index, v1)
-                    except exc.ITEApplication as e:
-                        logger.error(F"Can't fill {new_object} attr: {index}. {e}")
-                    except IndexError:
-                        logger.error(F'Object "{new_object}" not has attr: {index}')
-                    except TypeError as e:
-                        logger.error(F'Object {new_object} attr:{index} do not write, encoding wrong : {e}')
-                    except ValueError as e:
-                        logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-                    except AttributeError as e:
-                        logger.error(F'Object {new_object} attr:{index} do not fill: {e}')
-        case _ as error:
-            raise exc.VersionError(error, additional='Xml')
-    return cols, used, bool(int(objects.findtext("verified", default="0")))
-
 
 if config is not None:
     try:
         __collection_path = config['DLMS']['collection']['path']
     except KeyError as e:
         raise exc.TomlKeyError(F"not find {e} in [DLMS.collection]<path>")
-
-
-@lru_cache(1)
-def get_manufactures_container() -> dict[bytes, dict[bytes, dict[AppVersion | cdt.CommonDataType, os.DirEntry]]]:
-    logger.info(F"create manufacturer configuration container")
-    ret: dict[bytes, dict[bytes, dict[AppVersion, os.DirEntry]]] = dict()
-    with os.scandir(__collection_path) as ms:
-        for m in ms:
-            if m.is_dir():
-                if len(m.name) == 3:
-                    man = m.name.encode("ascii")
-                elif len(m.name) == 6:
-                    man = bytes.fromhex(m.name)
-                else:
-                    logger.warning(F"skip <{m}>: not recognized like manufacturer")
-                    continue
-                ret[man] = dict()
-                with os.scandir(m) as ts:
-                    for t in ts:
-                        if t.is_dir():
-                            ret[man][server_type := bytes.fromhex(t.name)] = dict()
-                            with os.scandir(t) as vs:
-                                for ver in vs:
-                                    if ver.is_file() and (v := ver.name.partition(".typ"))[1] == ".typ":
-                                        if (ver_ := AppVersion.from_str(v[0])) == AppVersion(0, 0, 0):  # todo: make Appversion other result if None
-                                            try:
-                                                ver_ = bytes.fromhex(v[0])
-                                            except ValueError as e:
-                                                logger.error(F"skip type, wrong file name {ver.path}")
-                                                continue
-                                        ret[man][server_type][ver_] = ver
-    return ret
-
-
-@lru_cache(maxsize=100)
-def get_dir_entry(m: bytes, t: ServerId, ver: ServerVersion) -> os.DirEntry:
-    """one recursion collection get way. ret: file, is_searched"""
-    if (man := get_manufactures_container().get(m)) is None:
-        raise exc.NoConfig(F"no support manufacturer: {m}")
-    elif (type_ := man.get(t.value.encoding)) is None:
-        raise exc.NoConfig(F"no support type {t}, with manufacturer: {m}")
-    elif f := type_.get(ver.value):
-        logger.info(F"got collection from library by path: {f.path}")
-        return f
-    elif isinstance(semver := ver.get_semver(), AppVersion) and (searched_version := semver.select_nearest(filter(lambda v: isinstance(v, AppVersion), type_.keys()))):
-        return type_.get(searched_version)
-    else:
-        raise exc.NoConfig(F"no support version {ver} with manufacturer: {m}, type: {t}")
-
-
-@lru_cache(maxsize=100)
-def get(m: bytes, t: ServerId, ver: ServerVersion) -> Collection:
-    """caching collection"""
-    return Collection.from_xml(get_dir_entry(m, t, ver))
-
-
-def get_collection(
-        manufacturer: bytes,
-        server_type: ServerId,
-        server_ver: ServerVersion,
-) -> Collection:
-    """get copy of collection with caching"""
-    ret = get(manufacturer, server_type, server_ver).copy()
-    ret.set_server_id(server_type)  # if xml file not contains the type
-    ret.set_server_ver(server_ver)
-    return ret
 
 
 def get_ln_contents(value: LNContaining) -> bytes:
