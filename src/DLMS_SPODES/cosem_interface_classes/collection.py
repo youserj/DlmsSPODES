@@ -663,7 +663,7 @@ class Collection:
 
     def __init__(self,
                  dlms_ver: int = 6,
-                 country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.RUSSIA,
+                 country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.UNKNOWN,
                  cntr_ver: FirmwareVersion = None,
                  man: bytes = None,
                  f_id: FirmwareID = None,

@@ -123,6 +123,7 @@ class Version:
 
 
 class CountrySpecificIdentifiers(IntEnum):
+    UNKNOWN = -1
     FINLAND = 0
     USA = 1
     CANADA = 2

@@ -28,3 +28,6 @@ class TestType(unittest.TestCase):
         self.assertEqual(p, cst.LogicalName.from_obis("0.2.0.1.0.255"))
         self.assertNotEqual(p, cst.LogicalName.from_obis("0.0.0.1.0.255"))
 
+    def test_country(self):
+        print(ln_pattern.COUNTRY_SPECIFIC_IDENTIFIERS)
+
