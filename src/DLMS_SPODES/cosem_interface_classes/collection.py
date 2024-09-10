@@ -649,7 +649,7 @@ class FirmwareVersion(ParameterValue):
 
 class Collection:
     __dlms_ver: int | None
-    __country: CountrySpecificIdentifiers
+    __country: CountrySpecificIdentifiers | None
     __country_ver: FirmwareVersion | None
     __manufacturer: bytes | None
     """according to LDN manufacturer field"""
@@ -663,7 +663,7 @@ class Collection:
 
     def __init__(self,
                  dlms_ver: int = 6,
-                 country: CountrySpecificIdentifiers = CountrySpecificIdentifiers.UNKNOWN,
+                 country: CountrySpecificIdentifiers = None,
                  cntr_ver: FirmwareVersion = None,
                  man: bytes = None,
                  f_id: FirmwareID = None,
