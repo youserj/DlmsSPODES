@@ -626,36 +626,21 @@ def get_filtered(objects: Iterable[InterfaceClass],
 @dataclass(unsafe_hash=True, frozen=True)
 class ParameterValue:
     par: bytes
-    value: cdt.CommonDataType
-
-    # def __eq__(self, other: Self | None):
-    #     if other is not None and self.par == other.par and self.value == other.value:
-    #         return True
-    #     else:
-    #         return False
+    value: bytes
 
     def __str__(self):
         return F"{'.'.join(map(str, self.par[:6]))}:{self.par[6]} - {self.value}"
 
 
-class FirmwareID(ParameterValue):
-    """"""
-
-
-class FirmwareVersion(ParameterValue):
-    def get_semver(self) -> SemVer:
-        return SemVer.parse(self.value.contents, optional_minor_and_patch=True)
-
-
 class Collection:
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers | None
-    __country_ver: FirmwareVersion | None
+    __country_ver: ParameterValue | None
     __manufacturer: bytes | None
     """according to LDN manufacturer field"""
-    __firm_id: FirmwareID | None
+    __firm_id: ParameterValue | None
     """according to Active Firmware identifier"""
-    __firm_ver: FirmwareVersion | None
+    __firm_ver: ParameterValue | None
     """according to Active Firmware version"""
     __container: dict[bytes, InterfaceClass]
     __const_objs: int
@@ -664,10 +649,10 @@ class Collection:
     def __init__(self,
                  dlms_ver: int = 6,
                  country: CountrySpecificIdentifiers = None,
-                 cntr_ver: FirmwareVersion = None,
+                 cntr_ver: ParameterValue = None,
                  man: bytes = None,
-                 f_id: FirmwareID = None,
-                 f_ver: FirmwareVersion = None):
+                 f_id: ParameterValue = None,
+                 f_ver: ParameterValue = None):
         self.__dlms_ver = dlms_ver
         self.__manufacturer = man
         self.__country = country
@@ -773,7 +758,7 @@ class Collection:
     def country_ver(self):
         return self.__country_ver
 
-    def set_country_ver(self, value: FirmwareVersion):
+    def set_country_ver(self, value: ParameterValue):
         """country version specification"""
         if not self.__country_ver:
             self.__country_ver = value
@@ -784,10 +769,10 @@ class Collection:
                 """success validation"""
 
     @property
-    def firm_id(self) -> FirmwareID | None:
+    def firm_id(self) -> ParameterValue | None:
         return self.__firm_id
 
-    def set_firm_id(self, value: FirmwareID, force: bool = False):
+    def set_firm_id(self, value: ParameterValue, force: bool = False):
         if not self.__firm_id or force:
             self.__firm_id = value
         else:
@@ -797,13 +782,13 @@ class Collection:
                 """success validation"""
 
     @property
-    def firm_ver(self) -> FirmwareVersion:
+    def firm_ver(self) -> ParameterValue:
         return self.__firm_ver
 
     def clear_server_ver(self):
         self.__firm_ver = None
 
-    def set_firm_ver(self, value: FirmwareVersion, force: bool = False):
+    def set_firm_ver(self, value: ParameterValue, force: bool = False):
         if self.__firm_ver is None or force:
             self.__firm_ver = value
         elif value != self.__firm_ver:
@@ -812,7 +797,7 @@ class Collection:
             """success validation"""
 
     def __str__(self):
-        return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country.name}, country specific version: {self.__country_ver}, " \
+        return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country}, country specific version: {self.__country_ver}, " \
                F"manufacturer: {self.__manufacturer}, firmwareID: {self.__firm_id}, firmwareVersion: {self.__firm_ver}, " \
                F"uses specification: {self.spec_map}"
 
@@ -829,9 +814,9 @@ class Collection:
                 return "KPZ1"
             case _:
                 if self.country == CountrySpecificIdentifiers.RUSSIA:
-                    if self.country_ver == FirmwareVersion(
-                            par=b'\x00\x00`\x01\x06\xff\x02',
-                            value=cdt.OctetString(bytearray(b"3.0"))
+                    if (
+                        self.country_ver.par == b'\x00\x00`\x01\x06\xff\x02' and
+                        SemVer.parse(cdt.OctetString(self.country_ver.value).decode(), True) == SemVer(3, 0)
                     ):
                         return "SPODES_3"
                 if self.dlms_ver == 6:
