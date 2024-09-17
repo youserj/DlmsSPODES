@@ -69,6 +69,7 @@ class LNPattern:
     def __repr__(self):
         return F"{self.__class__.__name__}(\"{".".join(map(lambda it: str(it) if isinstance(it, int) else str(tuple(it)), self.__values))}\")"
 
+
 @dataclass
 class LNPatterns:
     value: tuple[LNPattern, ...]
@@ -176,3 +177,5 @@ OUTPUT_PULSE_VALUES_OR_CONSTANTS = LNPattern("1.0.0.3.(0-9).255")
 RATIOS = LNPattern("1.0.0.4.(0-7).255")
 RECORDING_INTERVAL = LNPattern("1.0.0.8.(4,5).255")
 OTHER_ELECTRICITY_RELATED_GENERAL_PURPOSE = LNPattern("1.b.0.(2,3,4,6,7,8,9,10).e.255")
+# my special
+COUNTRY_SPECIFIC = LNPattern("a.b.94.d.e.f")  # 7.2.4 Table 54

@@ -31,3 +31,7 @@ class TestType(unittest.TestCase):
     def test_country(self):
         print(ln_pattern.COUNTRY_SPECIFIC_IDENTIFIERS)
 
+    def test_1(self):
+        reduce_ln = ln_pattern.LNPattern("0.0.(40,42).0.0.255")
+        print(cst.LogicalName.from_obis("0.0.40.0.0.255") in reduce_ln)
+

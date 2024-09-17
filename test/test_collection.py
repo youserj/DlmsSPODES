@@ -12,23 +12,23 @@ from src.DLMS_SPODES.exceptions import NeedUpdate, NoObject
 
 server_1_4_0 = collection.ParameterValue(
         par=bytes.fromhex("0000000201ff02"),
-        value=cdt.OctetString(bytearray(b"1.4.0")))
+        value=cdt.OctetString(bytearray(b"1.4.0")).encoding)
 
 server_1_5_15 = collection.ParameterValue(
         par=bytes.fromhex("0000000201ff02"),
-        value=cdt.OctetString(bytearray(b"1.5.15")))
+        value=cdt.OctetString(bytearray(b"1.5.15")).encoding)
 
 server_1_6_2 = collection.ParameterValue(
         par=bytes.fromhex("0000000201ff02"),
-        value=cdt.OctetString(bytearray(b"1.6.2")))
+        value=cdt.OctetString(bytearray(b"1.6.2")).encoding)
 
-serID_M2M_1 = collection.ParameterValue(
+firID_M2M_1 = collection.ParameterValue(
         par=bytes.fromhex("0000600101ff02"),
-        value=cdt.OctetString(bytearray(b'M2M_1')))
+        value=cdt.OctetString(bytearray(b'M2M_1')).encoding)
 
-serID_M2M_3 = collection.ParameterValue(
+firID_M2M_3 = collection.ParameterValue(
         par=bytes.fromhex("0000600101ff02"),
-        value=cdt.OctetString(bytearray(b'M2M_3')))
+        value=cdt.OctetString(bytearray(b'M2M_3')).encoding)
 
 # col_M2M1_1_5_15 = collection.get_collection(
 #     manufacturer=b"KPZ",
@@ -50,10 +50,20 @@ class TestType(unittest.TestCase):
         print(value, v1)
 
     def test_add(self):
-        col = collection.Collection()
-        col.set_manufacturer(b"KPZ")
-        col.set_firm_ver(server_1_5_15)
+        cont = set()
+        col = collection.Collection(
+            man=b"KPZ",
+            f_id=firID_M2M_1,
+            f_ver=server_1_5_15
+        )
+        col2 = collection.Collection(
+            man=b"KPZ",
+            f_id=firID_M2M_1,
+            f_ver=server_1_5_15
+        )
         col.spec_map = col.get_spec()
+        cont.add(col)
+        cont.add(col2)
         ver_obj = col.add(class_id=ut.CosemClassId(1),
                           version=cdt.Unsigned(0),
                           logical_name=cst.LogicalName.from_obis("0.0.96.1.6.255"))
@@ -65,7 +75,7 @@ class TestType(unittest.TestCase):
     def test_get_object_list(self):
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=serID_M2M_1,
+            server_type=firID_M2M_1,
             server_ver=server_1_5_15)
         print(col)
         a = col.get_objects_list(collection.enums.ClientSAP(48))
@@ -73,7 +83,7 @@ class TestType(unittest.TestCase):
         for i in range(10):
             col_new = collection.get_collection(
                 manufacturer=b"KPZ",
-                server_type=serID_M2M_3,
+                server_type=firID_M2M_3,
                 server_ver=server_1_6_2)
             print(col_new)
 
@@ -81,7 +91,7 @@ class TestType(unittest.TestCase):
         """for template"""
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=serID_M2M_1,
+            server_type=firID_M2M_1,
             server_ver=collection.ParameterValue(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.5.15"))))
@@ -91,7 +101,7 @@ class TestType(unittest.TestCase):
         """for template"""
         col = collection.get_collection(
             manufacturer=b"KPZ",
-            server_type=serID_M2M_3,
+            server_type=firID_M2M_3,
             server_ver=collection.ParameterValue(
                 par=bytes.fromhex("0000000201ff02"),
                 value=cdt.OctetString(bytearray(b"1.4.15"))))

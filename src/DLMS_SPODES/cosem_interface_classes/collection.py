@@ -676,6 +676,7 @@ class Collection:
         return hash((self.__manufacturer, self.__firm_id, self.__firm_ver))
 
     def copy(self) -> Self:
+        """no return <firmware version>"""
         new_collection = Collection(
             dlms_ver=self.__dlms_ver,
             country=self.__country,
@@ -690,8 +691,13 @@ class Collection:
             new_collection.__container[obj.logical_name.contents] = new_obj
             new_obj.collection = new_collection
             if obj.CLASS_ID == ClassID.ASSOCIATION_LN:
-                if max_ass is None or (obj.object_list and len(max_ass.object_list) < len(obj.object_list)):
-                    max_ass = obj
+                obj: AssociationLN
+                if obj.object_list is not None:
+                    if (
+                        max_ass is None
+                        or len(max_ass.object_list) < len(obj.object_list)
+                    ):
+                        max_ass = obj
         obj_for_set = max_ass.get_objects()
         ass_id: int = max_ass.logical_name.e
         last_length = len(obj_for_set)
@@ -1446,9 +1452,10 @@ def get_ln_contents(value: LNContaining) -> bytes:
 
 
 class AttrDesc:
-    """keep constant descriptors"""
+    """keep constant descriptors # todo: make better"""
     OBJECT_LIST = ut.CosemAttributeDescriptor((ClassID.ASSOCIATION_LN, ut.CosemObjectInstanceId("0.0.40.0.0.255"), ut.CosemObjectAttributeId(2)))
     LDN_VALUE = ut.CosemAttributeDescriptor((ClassID.DATA, ut.CosemObjectInstanceId("0.0.42.0.0.255"), ut.CosemObjectAttributeId(2)))
+    SPODES_VERSION = ut.CosemAttributeDescriptor((ClassID.DATA, ut.CosemObjectInstanceId("0.0.96.1.6.255"), ut.CosemObjectAttributeId(2)))
 
 
 __range10_and_255: tuple = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 255
