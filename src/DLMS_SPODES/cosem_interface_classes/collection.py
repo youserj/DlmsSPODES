@@ -1951,8 +1951,11 @@ def get_relation_group(ln: cst.LogicalName) -> RelationGroup:
 
 DLMSObjectContainer: TypeAlias = Collection | list[InterfaceClass] | filter
 
+
 @dataclass
 class Template:
+    name:        str
     collections: list[Collection]
     used:        UsedAttributes
+    description: str = ""
     verified:    bool = False
