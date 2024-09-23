@@ -1959,3 +1959,36 @@ class Template:
     used:        UsedAttributes
     description: str = ""
     verified:    bool = False
+
+    def is_contains(self, cols: Iterable[Collection]) -> list[bool]:
+        ret = [False]*len(cols := tuple(cols))
+        for i, col in enumerate(cols):
+            if col in self.collections:
+                ret[i] = True
+        return ret
+
+    def is_valid(self, col: Collection) -> bool:
+        """with update col"""
+        attr: cdt.CommonDataType
+        ret = True
+        use_col = self.collections[0]
+        """temporary used first collection"""
+        for ln, indexes in self.used.items():
+            try:
+                obj = use_col.get_object(ln)
+                obj_col = col.get_object(ln)
+            except exc.NoObject as e:
+                ret = False
+                logger.warning(F"<add_collection> skip obj{self}: {e}")
+                continue
+            for i in indexes:
+                if (attr := obj.get_attr(i)) is not None:
+                    try:
+                        obj_col.set_attr(i, attr.decode())
+                    except ValueError as e:
+                        ret = False
+                        logger.warning(F"<add_collection> skip {self} {ln: i}: {e}")
+                else:
+                    ret = False
+                    logger.warning(F"<add_collection> skip {self} {ln: i}: no value")
+        return ret

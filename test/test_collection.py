@@ -613,10 +613,3 @@ class TestType(unittest.TestCase):
         vol_ev_obj = col.get_object("0.0.96.5.4.255")
         vol_ev_obj.set_attr(2, 1)
         print(col.get_report(vol_ev_obj, b'\x02', vol_ev_obj.value))
-
-    def test_ServerVersion(self):
-        ver = "1.4.15"
-        sv = collection.ParameterValue(
-            par=b'1234562',
-            value=cdt.OctetString(bytearray(ver.encode("utf-8"))))
-        print(sv, sv.get_semver())
