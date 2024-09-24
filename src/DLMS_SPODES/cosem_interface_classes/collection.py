@@ -632,6 +632,13 @@ class ParameterValue:
         return F"{'.'.join(map(str, self.par[:6]))}:{self.par[6]} - {self.value}"
 
 
+@dataclass(frozen=True, unsafe_hash=True)
+class CollectionID:
+    man: bytes
+    f_id: ParameterValue
+    f_ver: ParameterValue
+
+
 class Collection:
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers | None
@@ -682,7 +689,9 @@ class Collection:
             country=self.__country,
             cntr_ver=self.__country_ver,
             man=self.__manufacturer,
-            f_id=self.__firm_id)
+            f_id=self.__firm_id,
+            f_ver=self.__firm_ver
+        )
         new_collection.spec_map = self.spec_map
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
@@ -1018,13 +1027,19 @@ class Collection:
     def get_writable_attr(self) -> UsedAttributes:
         """return all writable {obj.ln: {attribute_index}}"""
         ret: UsedAttributes = dict()
-        for ass in filter(lambda it: it.logical_name.e != 0, self.get_objects_by_class_id(ClassID.ASSOCIATION_LN)):
-            for list_type in ass.object_list:
-                for attr_access in list_type.access_rights.attribute_access:
-                    if attr_access.access_mode.is_writable():
-                        if ret.get(list_type.logical_name, None) is None:
-                            ret[list_type.logical_name] = set()
-                        ret[list_type.logical_name].add(int(attr_access.attribute_id))
+        for ass in self.get_objects_by_class_id(ClassID.ASSOCIATION_LN):
+            if (
+            ass.logical_name.e == 0
+            or ass.object_list is None
+            ):
+                continue
+            else:
+                for list_type in ass.object_list:
+                    for attr_access in list_type.access_rights.attribute_access:
+                        if attr_access.access_mode.is_writable():
+                            if ret.get(list_type.logical_name, None) is None:
+                                ret[list_type.logical_name] = set()
+                            ret[list_type.logical_name].add(int(attr_access.attribute_id))
         return ret
 
     def get_profile_s_u(self,
