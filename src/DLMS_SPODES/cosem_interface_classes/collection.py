@@ -848,7 +848,7 @@ class Collection:
 
     def get_spec(self) -> str:
         """return functional map to specification by identification fields"""
-        match self.manufacturer:
+        match self.id.man:
             case b"KPZ":
                 return "KPZ"
             case b"101" | b"102" | b"103" | b"104":
