@@ -653,7 +653,7 @@ class ID:
 
 
 class Collection:
-    id: ID
+    __id: ID
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers | None
     __country_ver: ParameterValue | None
@@ -675,7 +675,7 @@ class Collection:
                  man: bytes = None,
                  f_id: ParameterValue = None,
                  f_ver: ParameterValue = None):
-        self.id = id_
+        self.__id = id_
         self.__dlms_ver = dlms_ver
         self.__manufacturer = man
         self.__country = country
@@ -691,6 +691,19 @@ class Collection:
             class_id=ClassID.DATA,
             version=Version.V0,
             logical_name=cst.LogicalName.from_obis("0.0.42.0.0.255"))
+
+    @property
+    def id(self) -> ID | None:
+        return self.__id
+
+    def set_id(self, value: ID):
+        if not self.__id:
+            self.__id = value
+        else:
+            if value != self.__id:
+                raise ValueError(F"got id: {value}, expected {self.__id}")
+            else:
+                """success validation"""
 
     def __eq__(self, other: Self):
         return hash(self) == hash(other)
