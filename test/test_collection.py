@@ -42,6 +42,20 @@ firID_M2M_3 = collection.ParameterValue(
 
 
 class TestType(unittest.TestCase):
+    def test_ParVal(self):
+        pv = collection.ParameterValue(
+            par=bytes.fromhex("0000000201ff02"),
+            value=cdt.OctetString(bytearray(b"1.5.15")).encoding)
+        self.assertEqual(b'\x00\x00\x00\x02\x01\xff\x02\x00\t\x061.5.15', bytes(pv))
+        pv2 = collection.ParameterValue.parse(b'\x00\x00\x00\x02\x01\xff\x02\x00\t\x061.5.15')
+        print(bytes(pv2).hex())
+
+    def test_CollectionID(self):
+        ID = collection.ID(
+            man=b'KPZ',
+            f_id=firID_M2M_1,
+            f_ver=server_1_5_15
+        )
 
     def test_get_type_from_class(self):
         ln = cst.LogicalName.from_obis("0.0.1.0.0.255")

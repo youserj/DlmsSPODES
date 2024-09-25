@@ -629,17 +629,31 @@ class ParameterValue:
     value: bytes
 
     def __str__(self):
-        return F"{'.'.join(map(str, self.par[:6]))}:{self.par[6]} - {self.value}"
+        return F"{'.'.join(map(str, self.par[:6]))}:{self.par[6]} - {cdt.get_instance_and_pdu_from_value(self.value)[0].__repr__()}"
+
+    def __bytes__(self):
+        """par + 0x00 + value"""  # todo: 00 in future other parameters
+        return self.par + b'\x00' + self.value
+
+    @classmethod
+    def parse(cls, value: bytes) -> Self:
+        if value[7] != 0:
+            raise exc.ITEApplication(F"wrong {value} for {cls.__name__}")
+        return cls(
+            par=value[:7],
+            value=value[8:]
+        )
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class CollectionID:
+class ID:
     man: bytes
     f_id: ParameterValue
     f_ver: ParameterValue
 
 
 class Collection:
+    id: ID
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers | None
     __country_ver: ParameterValue | None
@@ -654,12 +668,14 @@ class Collection:
     spec_map: str
 
     def __init__(self,
+                 id_: ID = None,
                  dlms_ver: int = 6,
                  country: CountrySpecificIdentifiers = None,
                  cntr_ver: ParameterValue = None,
                  man: bytes = None,
                  f_id: ParameterValue = None,
                  f_ver: ParameterValue = None):
+        self.id = id_
         self.__dlms_ver = dlms_ver
         self.__manufacturer = man
         self.__country = country
@@ -680,17 +696,15 @@ class Collection:
         return hash(self) == hash(other)
 
     def __hash__(self):
-        return hash((self.__manufacturer, self.__firm_id, self.__firm_ver))
+        return hash(self.id)
 
     def copy(self) -> Self:
         """no return <firmware version>"""
         new_collection = Collection(
+            id_=self.id,
             dlms_ver=self.__dlms_ver,
             country=self.__country,
             cntr_ver=self.__country_ver,
-            man=self.__manufacturer,
-            f_id=self.__firm_id,
-            f_ver=self.__firm_ver
         )
         new_collection.spec_map = self.spec_map
         max_ass: AssociationLN | None = None
@@ -813,8 +827,7 @@ class Collection:
 
     def __str__(self):
         return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country}, country specific version: {self.__country_ver}, " \
-               F"manufacturer: {self.__manufacturer}, firmwareID: {self.__firm_id}, firmwareVersion: {self.__firm_ver}, " \
-               F"uses specification: {self.spec_map}"
+               F"id: {self.id}, uses specification: {self.spec_map}"
 
     def __iter__(self) -> Iterator[ic.COSEMInterfaceClasses]:
         return iter(self.__container.values())
