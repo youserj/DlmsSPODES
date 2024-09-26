@@ -657,12 +657,6 @@ class Collection:
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers | None
     __country_ver: ParameterValue | None
-    __manufacturer: bytes | None
-    """according to LDN manufacturer field"""
-    __firm_id: ParameterValue | None
-    """according to Active Firmware identifier"""
-    __firm_ver: ParameterValue | None
-    """according to Active Firmware version"""
     __container: dict[bytes, InterfaceClass]
     __const_objs: int
     spec_map: str
@@ -671,19 +665,12 @@ class Collection:
                  id_: ID = None,
                  dlms_ver: int = 6,
                  country: CountrySpecificIdentifiers = None,
-                 cntr_ver: ParameterValue = None,
-                 man: bytes = None,
-                 f_id: ParameterValue = None,
-                 f_ver: ParameterValue = None):
+                 cntr_ver: ParameterValue = None):
         self.__id = id_
         self.__dlms_ver = dlms_ver
-        self.__manufacturer = man
         self.__country = country
         self.__country_ver = cntr_ver
         """country version specification"""
-        self.__firm_id = f_id
-        self.__firm_ver = f_ver
-        """key: instance of 0.b.2.0.1.255, value AppVersion"""
         self.spec_map = "DLMS_6"
         self.__container = dict()
         """ all DLMS objects container with obis key """
@@ -771,19 +758,6 @@ class Collection:
                 """success validation"""
 
     @property
-    def manufacturer(self):
-        return self.__manufacturer
-
-    def set_manufacturer(self, value: bytes):
-        if not self.__manufacturer:
-            self.__manufacturer = value
-        else:
-            if value != self.__manufacturer:
-                raise ValueError(F"got manufacturer: {value}, expected {self.__manufacturer}")
-            else:
-                """success validation"""
-
-    @property
     def country(self):
         return self.__country
 
@@ -809,34 +783,6 @@ class Collection:
                 raise ValueError(F"got country version: {value}, expected {self.__country_ver}")
             else:
                 """success validation"""
-
-    @property
-    def firm_id(self) -> ParameterValue | None:
-        return self.__firm_id
-
-    def set_firm_id(self, value: ParameterValue, force: bool = False):
-        if not self.__firm_id or force:
-            self.__firm_id = value
-        else:
-            if value != self.__firm_id:
-                raise ValueError(F"got server ID: {value}, expected {self.__firm_id}")
-            else:
-                """success validation"""
-
-    @property
-    def firm_ver(self) -> ParameterValue:
-        return self.__firm_ver
-
-    def clear_server_ver(self):
-        self.__firm_ver = None
-
-    def set_firm_ver(self, value: ParameterValue, force: bool = False):
-        if self.__firm_ver is None or force:
-            self.__firm_ver = value
-        elif value != self.__firm_ver:
-            raise ValueError(F"got server type: {value}, expected {self.__firm_ver}")
-        else:
-            """success validation"""
 
     def __str__(self):
         return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country}, country specific version: {self.__country_ver}, " \
@@ -2001,17 +1947,18 @@ class Template:
     description: str = ""
     verified:    bool = False
 
-    def is_contains(self, cols: Iterable[Collection]) -> list[bool]:
-        ret = [False]*len(cols := tuple(cols))
+    def get_not_contains(self, cols: Iterable[Collection]) -> list[Collection]:
+        """return of collections not contains in template"""
+        ret = list()
         for i, col in enumerate(cols):
-            if col in self.collections:
-                ret[i] = True
+            if col not in self.collections:
+                ret.append(col)
         return ret
 
-    def is_valid(self, col: Collection) -> bool:
+    def get_not_valid(self, col: Collection) -> list[Exception]:
         """with update col"""
         attr: cdt.CommonDataType
-        ret = True
+        ret = list()
         use_col = self.collections[0]
         """temporary used first collection"""
         for ln, indexes in self.used.items():
@@ -2019,7 +1966,7 @@ class Template:
                 obj = use_col.get_object(ln)
                 obj_col = col.get_object(ln)
             except exc.NoObject as e:
-                ret = False
+                ret.append(e)
                 logger.warning(F"<add_collection> skip obj{self}: {e}")
                 continue
             for i in indexes:
@@ -2027,9 +1974,7 @@ class Template:
                     try:
                         obj_col.set_attr(i, attr.decode())
                     except ValueError as e:
-                        ret = False
-                        logger.warning(F"<add_collection> skip {self} {ln: i}: {e}")
+                        ret.append(ValueError(F"can't decode value {attr} for {ln}:{i}"))
                 else:
-                    ret = False
-                    logger.warning(F"<add_collection> skip {self} {ln: i}: no value")
+                    ret.append(exc.NoObject(F"has't attribute {i} for {ln}"))
         return ret
