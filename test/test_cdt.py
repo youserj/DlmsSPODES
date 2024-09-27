@@ -247,3 +247,8 @@ class TestType(unittest.TestCase):
         obj.set_attr(2, data)
         obj.set_attr(2, data)
         print(obj.value)
+
+    def test_enc2semver(self):
+        value = cdt.OctetString("31 2e 32 2k 30")
+        semver = cdt.encoding2semver(value.encoding)
+        self.assertEqual(cdt.SemVer(1,2,0), semver)

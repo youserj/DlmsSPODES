@@ -23,11 +23,6 @@ class LDN(DataStatic):
     """for ldn"""
     A_ELEMENTS = Data.get_attr_element(2).get_change(data_type=impl.octet_string.LDN),
 
-    def characteristics_init(self):
-        self._cbs_attr_post_init.update(
-            {2: lambda: self.collection.set_manufacturer(self.value.contents[:3])}
-        )
-
     @property
     def get_manufacturer(self) -> bytes:
         return self.value.contents[:3]

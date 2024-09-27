@@ -622,7 +622,6 @@ def get_filtered(objects: Iterable[InterfaceClass],
         new_list.append(obj)
     return new_list
 
-
 @dataclass(unsafe_hash=True, frozen=True)
 class ParameterValue:
     par: bytes

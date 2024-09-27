@@ -4,10 +4,12 @@ from dataclasses import dataclass, field
 from struct import pack, unpack
 from abc import ABC, abstractmethod
 from typing import Type, Any, Callable, TypeAlias, Self
+from typing_extensions import deprecated
 from collections import deque
 from math import log, ceil
 import datetime
 import logging
+from semver import Version as SemVer
 from ..config_parser import config, get_values
 from .. import config_parser
 
@@ -1910,6 +1912,7 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
         else:
             return b'\x00'
 
+    @deprecated("use IntegerMenu init_subclass")
     def __init_subclass__(cls, **kwargs):
         """initiate NAMES name use config.toml"""
         super().__init_subclass__(**kwargs)
@@ -1929,15 +1932,7 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
     def __str__(self):
         return str(int(self))   #self.ELEMENTS[self.contents]
 
-    @property
-    def value(self) -> str:
-        """ enum value name by according dlms """
-        return str(self)
-
-    @property
-    def value2(self) -> int:
-        return int(self)
-
+    @deprecated("not use this any more")
     def validate_from(self, value: str, cursor_position=None):
         """ return 'Ok' if string is valid else return valid Str """
         try:
@@ -2307,32 +2302,32 @@ CommonDataTypes: TypeAlias = NullData | Array | Structure | Boolean | BitString 
                              Long | Unsigned | LongUnsigned | CompactArray | Long64 | Long64Unsigned | Enum | Float32 | Float64 | DateTime | Date | Time
 
 
+_SCALERS: dict[bytes, int] = {it.to_bytes(1, "big"): 0 for it in range(1, 256)}
+"""custom scaler depend from unit. initiate by 0 all"""
+if unit_table := config_parser.get_values("DLMS", "Unit"):
+    for par in unit_table:
+        _SCALERS[par["e"].to_bytes()] = par.get("scaler", 0)
+
+
 class Unit(Enum, elements=tuple(range(1, 256))):
-    SCALERS: dict[bytes, int] = {it.to_bytes(1, "big"): 0 for it in range(1, 256)}
-    """custom scaler depend from unit. initiate by 0 all"""
-    if unit_table := config_parser.get_values("DLMS", "Unit"):
-        for par in unit_table:
-            SCALERS[par["e"].to_bytes()] = par.get("scaler", 0)
-        SCALER_NAME = {it["value"]: it["name"] for it in config_parser.get_values("DLMS", "scaler_prefix")}
-
-    def __str__(self):
-        match self.get_scaler():
-            case 0: return super(Unit, self).__str__()
-            case other:
-                if (prefix := self.SCALER_NAME.get(other)) is not None:
-                    return prefix + super(Unit, self).__str__()
-                else:
-                    raise ValueError(F"unsupport scaler preset: {other} in Unit")
-
-    def get_scaler(self) -> int:
-        return self.SCALERS[self.contents]
-
+    """"""
 
 def get_unit_scaler(unit_contents: bytes) -> int:
-    return Unit.SCALERS[unit_contents]
+    return _SCALERS[unit_contents]
 
 
 class ScalUnitType(Structure):
     """ DLMS UA 1000-1 Ed. 14 4.3.2 Register scaler_unit"""
     scaler: Integer
     unit: Unit
+
+
+def encoding2semver(value: bytes) -> SemVer:
+    """convert any CDT encoding to SemVer2.0.
+    :param value: CDT encoding
+    :return: a new class semver.Version
+    :raises  ValueError, TypeError: for SemVer"""
+    data = get_common_data_type_from(value[:1])(value)
+    return SemVer.parse(
+        version=data.decode(),
+        optional_minor_and_patch=True)
