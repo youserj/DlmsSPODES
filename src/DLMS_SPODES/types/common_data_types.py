@@ -394,6 +394,9 @@ class _String(ABC):
     def clear(self):
         self.__dict__['contents'] = self.DEFAULT
 
+    def __bytes__(self):
+        return self.contents
+
 
 class FlagMixin(ABC):
     """ Used for override Common Data Type as Flag data """
@@ -1689,9 +1692,6 @@ class OctetString(_String, SimpleDataType):
         for i in self.contents:
             temp.append(i if i > 32 else 63)
         return bytes(temp).decode(encoding)
-
-    def __bytes__(self):
-        return self.contents
 
 
 class VisibleString(_String, SimpleDataType):
