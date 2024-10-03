@@ -54,7 +54,8 @@ class TestType(unittest.TestCase):
         ID = collection.ID(
             man=b'KPZ',
             f_id=firID_M2M_1,
-            f_ver=server_1_5_15
+            f_ver=server_1_5_15,
+            sap=0x10
         )
 
     def test_get_type_from_class(self):

@@ -27,7 +27,8 @@ class TestType(unittest.TestCase):
                     value=cdt.OctetString("4d324d5f33").encoding),
                 f_ver=collection.ParameterValue(
                     par=b'',
-                    value=cdt.OctetString(bytearray(b'1.3.0')).encoding)
+                    value=cdt.OctetString(bytearray(b'1.3.0')).encoding),
+                sap=0x30
             )
         )
         col.spec_map = col.get_spec()

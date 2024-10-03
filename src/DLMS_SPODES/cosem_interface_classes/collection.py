@@ -646,6 +646,7 @@ class ID:
     man: bytes
     f_id: ParameterValue
     f_ver: ParameterValue
+    sap: int
 
 
 class Collection:
