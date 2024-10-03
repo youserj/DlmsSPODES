@@ -2,8 +2,7 @@ import unittest
 from src.DLMS_SPODES.types import cdt, cst, ut
 from src.DLMS_SPODES.cosem_interface_classes import collection, overview
 from src.DLMS_SPODES.cosem_interface_classes import implementations as impl
-from src.DLMS_SPODES.version import AppVersion
-
+# from .init_collection import col
 
 class TestType(unittest.TestCase):
 
@@ -20,18 +19,25 @@ class TestType(unittest.TestCase):
         print(col)
 
     def test_ExternalEventData(self):
-        col = collection.Collection()
-        col.set_manufacturer(b'KPZ')
-        col.set_country("3.0")
-        col.server_ver = AppVersion(1, 3, 0)
-        col.server_type = cdt.OctetString("4d324d5f33")
+        col = collection.Collection(
+            id_=collection.ID(
+                man=b'KPZ',
+                f_id=collection.ParameterValue(
+                    par=b'',
+                    value=cdt.OctetString("4d324d5f33").encoding),
+                f_ver=collection.ParameterValue(
+                    par=b'',
+                    value=cdt.OctetString(bytearray(b'1.3.0')).encoding)
+            )
+        )
         col.spec_map = col.get_spec()
+        print(col)
         col.add(class_id=ut.CosemClassId(1), version=cdt.Unsigned(0), logical_name=cst.LogicalName.from_obis("0.0.96.11.4.255"))
         obj = col.get_object("0.0.96.11.4.255")
-        obj.set_attr(2, b'\x06\x00\x00\x00\x02')
+        obj.set_attr(2, cdt.LongUnsigned(2).encoding)
         # obj.set_attr(2, 2)
-        print(obj.value, obj.value.report)
-        self.assertEqual(obj.value.report, "Магнитное поле - окончание(2)", "report match")
+        print(obj.value, obj.value.get_report())
+        self.assertEqual(obj.value.get_report().msg, "(2) Магнитное поле - окончание", "report match")
         print(col)
 
     def test_DeviceIdObjects(self):

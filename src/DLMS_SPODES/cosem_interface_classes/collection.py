@@ -2,8 +2,6 @@
 principles (see Clause 4 EN 62056-62:2007), the identification of real data items is specified in IEC 62056-61. The following clauses define the
 usage of those definitions in the COSEM environment. All codes, which are not explicitly listed, but outside the manufacturer specific range are
 reserved for future use."""
-import os
-import copy
 from struct import pack
 import datetime
 from dataclasses import dataclass
@@ -12,7 +10,6 @@ from functools import reduce, cached_property, lru_cache
 from typing import TypeAlias, Iterator, Type, Self, Callable, Literal, Iterable
 import logging
 from semver import Version as SemVer
-from ..version import AppVersion
 from ..types import common_data_types as cdt, cosem_service_types as cst, useful_types as ut
 from ..types.implementations import structs, enums, octet_string
 from . import cosem_interface_class as ic

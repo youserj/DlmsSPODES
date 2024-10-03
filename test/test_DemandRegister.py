@@ -1,8 +1,6 @@
 import unittest
 from src.DLMS_SPODES.types import cdt, cst, ut
 from src.DLMS_SPODES.cosem_interface_classes import collection, overview
-from src.DLMS_SPODES.cosem_interface_classes import implementations as impl
-from src.DLMS_SPODES.version import AppVersion
 
 
 class TestType(unittest.TestCase):

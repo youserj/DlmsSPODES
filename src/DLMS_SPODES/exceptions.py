@@ -1,6 +1,6 @@
 from enum import IntEnum
 from .enums import Transmit, Application
-from .version import AppVersion
+from semver import Version as SemVer
 from . import pdu_enums as pdu
 
 
@@ -83,7 +83,7 @@ class VersionError(ITEApplication):
     """ Version error """
     error = Application.VERSION_ERROR
 
-    def __init__(self, error_version: AppVersion, additional: str = 'device'):
+    def __init__(self, error_version: SemVer, additional: str = 'device'):
         Exception.__init__(self, F'Unsupported {additional} version: {error_version}')
         self.version = error_version
 
