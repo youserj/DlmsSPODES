@@ -3,6 +3,7 @@ principles (see Clause 4 EN 62056-62:2007), the identification of real data item
 usage of those definitions in the COSEM environment. All codes, which are not explicitly listed, but outside the manufacturer specific range are
 reserved for future use."""
 from struct import pack
+from typing_extensions import deprecated
 import datetime
 from dataclasses import dataclass
 from itertools import count, chain
@@ -871,6 +872,13 @@ class Collection:
         else:
             return ret
 
+    def has_sap(self, value: enums.ClientSAP) -> bool:
+        try:
+            self.sap2association(value)
+            return True
+        except exc.NoObject:
+            return False
+
     @lru_cache(maxsize=100)  # amount of all ClassID
     def find_version(self, class_id: ut.CosemClassId) -> cdt.Unsigned:
         """use for add new object from profile_generic if absence in object list"""
@@ -1084,6 +1092,7 @@ class Collection:
     def getASSOCIATION(self, instance: int) -> AssociationLN:
         return self.__get_object(bytes((0, 0, 40, 0, instance, 255)))
 
+    @deprecated("use sap2association")
     def getAssociationBySAP(self, SAP: enums.ClientSAP) -> AssociationLN:
         return self.__get_object(bytes((0, 0, 40, 0, self.get_association_id(SAP), 255)))
 
@@ -1264,6 +1273,15 @@ class Collection:
                 continue
         else:
             raise ValueError(F"absent association with {client_sap}")
+
+    def sap2association(self, sap: enums.ClientSAP) -> AssociationLN:
+        for ass in get_filtered(self, (ln_pattern.NON_CURRENT_ASSOCIATION,)):
+            if ass.associated_partners_id.client_SAP == sap:
+                return ass
+            else:
+                continue
+        else:
+            raise exc.NoObject(F"hasn't association with {sap}")
 
     @lru_cache(maxsize=1000)
     def is_readable(self, ln: cst.LogicalName,
