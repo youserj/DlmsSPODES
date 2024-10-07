@@ -8,6 +8,8 @@ class TestType(unittest.TestCase):
     def test_ScalerUnitType(self):
         su = cdt.ScalUnitType((0, 27))
         print(su)
-        value = cdt.DoubleLong(1.2, scaler_unit=su)
-        a = str(value)
-        print(value, value.report)
+
+    def test_report(self):
+        su = cdt.ScalUnitType((-104, 27))
+        rep = su.get_report()
+        print(rep)

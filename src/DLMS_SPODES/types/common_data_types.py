@@ -2317,15 +2317,47 @@ if unit_table := config_parser.get_values("DLMS", "Unit"):
 class Unit(Enum, elements=tuple(range(1, 256))):
     """"""
 
+
 def get_unit_scaler(unit_contents: bytes) -> int:
     return _SCALERS[unit_contents]
 
 
-class ScalUnitType(Structure):
+class ScalUnitType(ReportMixin, Structure):
     """ DLMS UA 1000-1 Ed. 14 4.3.2 Register scaler_unit"""
     scaler: Integer
     unit: Unit
 
+    def get_report(self) -> Report:
+        if (unit_rep := self.unit.get_report()).log.lev != logging.INFO:
+            return Report(
+                msg=str(self),
+                log=unit_rep.log
+            )
+        else:
+            msg = "*"
+            if (scaler := int(self.scaler)) == 0:
+                ...
+            else:
+                msg += "10"
+                if scaler == 1:
+                    ...
+                else:
+                    for char in str(scaler):
+                        match char:
+                            case '-': res = "\u207b"
+                            case '0': res = "\u2070"
+                            case '1': res = "\u00b9"
+                            case '2': res = "\u00b2"
+                            case '3': res = "\u00b3"
+                            case '4': res = "\u2074"
+                            case '5': res = "\u2075"
+                            case '6': res = "\u2076"
+                            case '7': res = "\u2077"
+                            case '8': res = "\u2078"
+                            case '9': res = "\u2079"
+                            case _:   raise RuntimeError
+                        msg += res
+            return Report(F"{msg} {self.unit.get_name()}", log=INFO_LOG)
 
 def encoding2semver(value: bytes) -> SemVer:
     """convert any CDT encoding to SemVer2.0.
