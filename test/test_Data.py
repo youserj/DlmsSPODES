@@ -51,3 +51,9 @@ class TestType(unittest.TestCase):
         for i in range(255):
             obj.value.set(i)
             print(i, obj.value.get_report())
+
+    def test_Spodes_Version(self):
+        obj = impl.data.SPODES3SPODESVersion("00 00 60 01 06 FF")
+        obj.set_attr(2, "33 2e 30")
+        rep = obj.value.get_report()
+        print(rep)

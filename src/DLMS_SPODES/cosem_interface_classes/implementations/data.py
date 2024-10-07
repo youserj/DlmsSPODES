@@ -1,10 +1,9 @@
+import re
+import logging
 from ..data import Data, ic, cdt, cst, choices
 from ... import enums as enu
 from ...types import implementations as impl
 from ...config_parser import get_message
-import logging
-from semver import Version as SemVer
-from ... import exceptions as exc
 
 
 class DataStatic(Data):
@@ -248,6 +247,7 @@ class SPODES3ReactivePowerEvent(DataDynamic):
 class SPODES3PowerQuality2EventValues(cdt.IntegerFlag, cdt.LongUnsigned):
     pass
 
+
 class SPODES3PowerQuality2Event(DataNotSpecific):
     """СТО_34.01-5.1-006-2019v3 E.1 Статус качества сети (журнал качества сети)"""
     A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=SPODES3PowerQuality2EventValues),
@@ -385,10 +385,13 @@ class DLMSDeviceIDObject(DataStatic):
 
 
 class SPODES3SPODESVersionValue(cdt.ReportMixin, cdt.OctetString):
+    __pattern = re.compile(b"\\d{1,2}\\.\\d{1,2}")
+
     def get_report(self) -> cdt.Report:
         """custom string represent"""
         try:
-            msg = SemVer.parse(self.contents)
+            self.validate()
+            msg = self.contents.decode("ascii", errors="ignore")
             log = cdt.INFO_LOG
         except ValueError as e:
             msg = str(self)
@@ -397,6 +400,10 @@ class SPODES3SPODESVersionValue(cdt.ReportMixin, cdt.OctetString):
             msg=msg,
             log=log
         )
+
+    def validate(self):
+        if self.__pattern.fullmatch(self.contents) is None:
+            raise ValueError(F"не соответствует СТО 34.01-5.1. Приложение Г")
 
 
 class SPODES3SPODESVersion(DLMSDeviceIDObject):

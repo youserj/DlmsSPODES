@@ -52,6 +52,7 @@ class ReportMixin(ABC):
 type Message = str
 type Number = int
 
+
 class IntegerEnum(ReportMixin, ABC):
     """value with represent __int__ to string"""
     NAMES: dict[Number, Message] = None
@@ -197,7 +198,11 @@ class CommonDataType(ABC):
 
     def validate_from(self, value: str, cursor_position: int) -> tuple[str, int]:
         """ not allowed change of string in common class """
-        raise ValueError(F'Not supported for {self.TAG}')
+        raise ValueError(F"not supported for {self.TAG}")
+
+    def validate(self):
+        """:raises ValueError if not"""
+        raise ValueError(F"not supported for {self.__class__.__name__}")
 
     @classmethod
     def get_types(cls):
