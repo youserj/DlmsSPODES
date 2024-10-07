@@ -2334,11 +2334,11 @@ class ScalUnitType(ReportMixin, Structure):
                 log=unit_rep.log
             )
         else:
-            msg = "*"
+            msg = ""
             if (scaler := int(self.scaler)) == 0:
                 ...
             else:
-                msg += "10"
+                msg = "*10"
                 if scaler == 1:
                     ...
                 else:
@@ -2358,6 +2358,7 @@ class ScalUnitType(ReportMixin, Structure):
                             case _:   raise RuntimeError
                         msg += res
             return Report(F"{msg} {self.unit.get_name()}", log=INFO_LOG)
+
 
 def encoding2semver(value: bytes) -> SemVer:
     """convert any CDT encoding to SemVer2.0.
