@@ -77,7 +77,7 @@ class LNPattern:
                 values[i] = el
             else:
                 raise ValueError(F"got wrong symbol: {val} in pattern")
-            return cls(tuple(values))
+        return cls(tuple(values))
 
     @staticmethod
     def __simple_validate(value: str) -> int:
