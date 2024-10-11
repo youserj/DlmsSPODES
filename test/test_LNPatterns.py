@@ -16,7 +16,7 @@ class TestType(unittest.TestCase):
 
     @staticmethod
     def get_pattern():
-        return ln_pattern.LNPattern("0.b.0.1.0.255")
+        return ln_pattern.LNPattern.parse("0.b.0.1.0.255")
 
     def test_create(self):
         p = self.get_pattern()
@@ -31,6 +31,6 @@ class TestType(unittest.TestCase):
         print(ln_pattern.COUNTRY_SPECIFIC_IDENTIFIERS)
 
     def test_1(self):
-        reduce_ln = ln_pattern.LNPattern("0.0.(40,42).0.0.255")
+        reduce_ln = ln_pattern.LNPattern.parse("0.0.(40,42).0.0.255")
         print(cst.LogicalName.from_obis("0.0.40.0.0.255") in reduce_ln)
 

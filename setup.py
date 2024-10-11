@@ -6,7 +6,7 @@ setuptools.setup(
     url="https://github.com/youserj/DlmsSPODES",
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: MIT License"
     ],
     entry_points={

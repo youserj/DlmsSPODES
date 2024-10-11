@@ -501,9 +501,11 @@ class TestType(unittest.TestCase):
         print(res)
 
     def test_LNPattern(self):
-        pattern = collection.LNPattern("a.2.(1, 200, 43, 51, 3-8).4.5.9")
+        pattern = collection.LNPattern.parse("a.2.(1).4.5.9")
+        pattern2 = collection.LNPattern.parse("a.2.!(4).4.5.9")
+        pattern3 = collection.LNPattern.parse("a.2.(1, 200, 43, 51, 3-8).4.5.9")
         pat3 = ln_pattern.GENERAL_AND_SERVICE_ENTRY
-        pattern2 = collection.LNPattern("a.2.31.4.5.9")
+        pattern2 = collection.LNPattern.parse("a.2.31.4.5.9")
         print(pattern)
         print(cst.LogicalName.from_obis("1.2.31.4.5.9") in (pattern, pattern2))
         col = collection.get_collection(
@@ -516,7 +518,7 @@ class TestType(unittest.TestCase):
                 value=cdt.OctetString(bytearray(b"1.5.15"))))
         res = collection.get_filtered(
             objects=col.filter_by_ass(3),
-            # keys=(collection.LNPattern("a.b.(14-20).d.e.f"),)
+            # keys=(collection.LNPattern.parse("a.b.(14-20).d.e.f"),)
             # keys=(pattern2,)
             keys=(pat3,)
         )
