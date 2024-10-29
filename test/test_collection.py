@@ -501,6 +501,8 @@ class TestType(unittest.TestCase):
         print(res)
 
     def test_LNPattern(self):
+        pattern0 = ln_pattern.NON_CURRENT_ASSOCIATION
+
         pattern = collection.LNPattern.parse("a.2.(1).4.5.9")
         pattern2 = collection.LNPattern.parse("a.2.!(4).4.5.9")
         pattern3 = collection.LNPattern.parse("a.2.(1, 200, 43, 51, 3-8).4.5.9")

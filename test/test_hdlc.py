@@ -3,6 +3,10 @@ from src.DLMS_SPODES.hdlc import frame
 
 
 class TestType(unittest.TestCase):
+    def test_control(self):
+        control = frame.Control(0x97)
+        print(control)
+
     def test_Address(self):
         ad1 = frame.Address(
             upper_address=0x1,
