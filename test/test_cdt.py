@@ -93,6 +93,8 @@ class TestType(unittest.TestCase):
         from src.DLMS_SPODES.cosem_interface_classes.association_ln.ver0 import XDLMSContextType
         c = Conformance()
         print(c)
+        c[1] = 0
+        x = c[2]
         a = int('1011011101111', 2)
         c.set(a)
         self.assertEqual(c.decode(), [1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])

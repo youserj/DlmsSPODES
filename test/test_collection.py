@@ -1,14 +1,11 @@
-import logging
-import os
 from itertools import count
 import time
 import unittest
 from src.DLMS_SPODES.types import cdt, cst, ut
 from src.DLMS_SPODES.cosem_interface_classes import collection, overview, ln_pattern
-from src.DLMS_SPODES import cosem_interface_classes
 from src.DLMS_SPODES.obis import media_id
 from src.DLMS_SPODES.exceptions import NeedUpdate, NoObject
-from .collection_init import col as col_
+from test.collection_init import col as col_
 
 
 server_1_4_0 = collection.ParameterValue(
@@ -641,3 +638,12 @@ class TestType(unittest.TestCase):
         vol_ev_obj = col.get_object("0.0.96.5.4.255")
         vol_ev_obj.set_attr(2, 1)
         print(col.get_report(vol_ev_obj, b'\x02', vol_ev_obj.value))
+
+    def test_no_valid(self):
+        col = collection.Collection()
+        col.add(
+            class_id=overview.ClassID.PROFILE_GENERIC,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName("01 00 5e 07 04 ff")
+        )
+        print(col)

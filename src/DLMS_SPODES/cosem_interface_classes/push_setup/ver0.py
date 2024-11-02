@@ -10,6 +10,3 @@ class PushSetup(ic.COSEMInterfaceClasses):
 
     def characteristics_init(self):
         """ initiate all attributes and methods of class """
-
-    def NAME(self) -> str:
-        return "not support version"

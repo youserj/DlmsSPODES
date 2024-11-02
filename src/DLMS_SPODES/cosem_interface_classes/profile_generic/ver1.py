@@ -1,28 +1,11 @@
+"""DLMS UA 1000-1 Ed. 14"""
+from . import ver0
 from typing import Type, Iterator
 from ... import cosem_interface_classes
-from ..register import Register
-from ..clock import Clock
 from ...relation_to_OBIS import get_name
 from ... import exceptions as exc
 from ..__class_init__ import *
 from ...types.implementations import integers, arrays, structs
-
-BUFFER = 2
-CAPTURE_OBJECTS = 3
-CAPTURE_PERIOD = 4
-SORT_METHOD = 5
-SORT_OBJECT = 6
-ENTRIES_IN_USE = 7
-PROFILE_ENTRIES = 8
-
-
-class SortMethod(cdt.Enum, elements=(1, 2, 3, 4, 5, 6)):
-    """ If the profile is unsorted, it works as a “first in first out” buffer (it is hence sorted by capturing, and not necessarily by the time
-    maintained in the clock object). If the buffer is full, the next call to capture () will push out the first (oldest) entry of the buffer to make
-    space for the new entry. If the profile is sorted, a call to capture () will store the new entry at the appropriate position in the buffer, moving
-    all following entries and probably losing the least interesting entry. If the new entry would enter the buffer after the last entry and if the
-    buffer is already full, the new entry will not be retained at all. """
-
 
 class CaptureObjects(cdt.Array):
     """ Specifies the list of capture objects """
@@ -51,48 +34,29 @@ class AccessSelector(ut.Unsigned8):
             raise ValueError(F'The {self.__class__.__name__} got {int(self)}, expected 1..2')
 
 
-class ProfileGeneric(ic.COSEMInterfaceClasses):
-    """ The “Profile generic” class defines a generalized concept to store dynamic process values of capture objects. Capture objects are appropriate
-    attributes or element of (an) attribute(s) of COSEM objects. The capture objects are collected periodically or occasionally.
-    A profile has a buffer to store the captured data. To retrieve only a part of the buffer, either a value range or an entry range may be specified,
-    asking to retrieve all entries whose values or entry numbers fall within the given range.
-    The list of capture objects defines the values to be stored in the buffer (using the method capture). The list is defined statically to ensure
-    homogenous buffer entries (all entries have the same size and structure). If the list of capture objects is modified, the buffer is cleared. If
-    the buffer is captured by other “Profile generic” objects, their buffer is cleared as well, to guarantee the homogeneity of their buffer entries.
-    The buffer may be defined as sorted by one of the registers or by a clock, or the entries are stacked in a “last in first out” order. So for
-    example, it is very easy to build a “maximum demand register” with a one entry deep sorted profile capturing and sorted by a demand register.
-    It is just as simple to define a profile retaining the three largest values of some period.
-    The size of profile data is determined by three parameters:
-        a) the number of entries filled. This will be zero after clearing the profile;
-        b) the maximum number of entries to retain. If all entries are filled and a capture () request occurs, the least important entry(according to
-           the requested sorting method) will get lost.This maximum number of entries may be specified. Upon changing it, the buffer will be adjusted;
-        c) the physical limit for the buffer. This limit typically depends on the objects to capture. The object will reject an attempt of setting
-        the maximum number of entries that is larger than physically possible. """
-    CLASS_ID = ClassID.PROFILE_GENERIC
+class ProfileGeneric(ver0.ProfileGeneric):
+    """4.3.6 Profile generic"""
     VERSION = Version.V1
-    scaler_profile_key: bytes | None = None
-    """ obis of scaler profile for this profile if need """
-    buffer_capture_objects: CaptureObjects
-    range_descriptor: Type[cdt.Structure] = None
-    attr_descriptor_with_selection: Type[ut.CosemAttributeDescriptorWithSelection] = None
     A_ELEMENTS = (ic.ICAElement("buffer", arrays.SelectionAccess, classifier=ic.Classifier.DYNAMIC),
                   ic.ICAElement("capture_objects", CaptureObjects),
-                  ic.ICAElement("capture_period", cdt.DoubleLongUnsigned),
-                  ic.ICAElement("sort_method", SortMethod),
+                  ver0.ProfileGeneric.get_attr_element(4),
+                  ver0.ProfileGeneric.get_attr_element(5),
                   ic.ICAElement("sort_object", structs.CaptureObjectDefinition),
                   ic.ICAElement("entries_in_use", cdt.DoubleLongUnsigned, 0, default=0, classifier=ic.Classifier.DYNAMIC),
                   ic.ICAElement("profile_entries", cdt.DoubleLongUnsigned, 1, default=1))
-    M_ELEMENTS = (ic.ICMElement("reset", integers.Only0),
-                  ic.ICMElement("capture", integers.Only0))
+    M_ELEMENTS = (
+        ver0.ProfileGeneric.get_meth_element(1),
+        ver0.ProfileGeneric.get_meth_element(2)
+    )
 
     def characteristics_init(self):
-        self.set_attr(BUFFER, None)
+        self.set_attr(ver0.BUFFER, None)
 
         # todo remove it
         self.buffer.register_cb_preset(lambda _: self.__create_buffer_struct_type())  # value not used for creating struct type
 
-        self._cbs_attr_post_init.update({CAPTURE_OBJECTS: self.__create_buffer_struct_type,
-                                         SORT_OBJECT: self.__create_selective_access_descriptor})
+        self._cbs_attr_post_init.update({ver0.CAPTURE_OBJECTS: self.__create_buffer_struct_type,
+                                         ver0.SORT_OBJECT: self.__create_selective_access_descriptor})
 
         self.buffer_capture_objects = self.capture_objects
         """ objects for buffer. Change with access_selection """
@@ -106,39 +70,15 @@ class ProfileGeneric(ic.COSEMInterfaceClasses):
         return self.get_attr(3)
 
     @property
-    def capture_period(self) -> cdt.DoubleLongUnsigned:
-        return self.get_attr(4)
-
-    @property
-    def sort_method(self) -> SortMethod:
-        return self.get_attr(5)
-
-    @property
     def sort_object(self) -> structs.CaptureObjectDefinition:
         return self.get_attr(6)
-
-    @property
-    def entries_in_use(self) -> cdt.DoubleLongUnsigned:
-        return self.get_attr(7)
-
-    @property
-    def profile_entries(self) -> cdt.DoubleLongUnsigned:
-        return self.get_attr(8)
-
-    @property
-    def reset(self) -> integers.Only0:
-        return self.get_meth(1)
-
-    @property
-    def capture(self) -> integers.Only0:
-        return self.get_meth(2)
 
     def get_attr_descriptor(self,
                             value: int,
                             with_selection: bool = False) -> ut.CosemAttributeDescriptor | ut.CosemAttributeDescriptorWithSelection:
         """ with selection for object_list. TODO: Copypast AssociationLN"""
         descriptor: ut.CosemAttributeDescriptor = super(ProfileGeneric, self).get_attr_descriptor(value)
-        if value == BUFFER and with_selection:
+        if value == ver0.BUFFER and with_selection:
             if self.attr_descriptor_with_selection is None:
                 self.__create_selective_access_descriptor()
             return self.attr_descriptor_with_selection((descriptor.contents, self.buffer.selective_access.contents))
@@ -172,8 +112,8 @@ class ProfileGeneric(ic.COSEMInterfaceClasses):
                         self.buffer_capture_objects = self.capture_objects[from_selected_value:to_selected_value]
                     case _ as err:                                                raise ValueError(F'access_selection out of range, got {err}, must be (0..2)')
             case None:
-                self.clear_attr(CAPTURE_OBJECTS)
-                self._cbs_attr_post_init[CAPTURE_OBJECTS] = self.__create_buffer_struct_type
+                self.clear_attr(ver0.CAPTURE_OBJECTS)
+                self._cbs_attr_post_init[ver0.CAPTURE_OBJECTS] = self.__create_buffer_struct_type
                 raise exc.EmptyObj(F"need set <sort_object> before for {self}")
         buffer_elements: list[cdt.StructElement] = list()
         for el_value in self.buffer_capture_objects:
@@ -181,12 +121,7 @@ class ProfileGeneric(ic.COSEMInterfaceClasses):
             buffer_elements.append(cdt.StructElement(NAME=". ".join(names), TYPE=type_))
 
         class Entry(cdt.Structure):
-            """ The number and the order of the elements of the structure holding the entries is the same as in the definition of the capture_objects.
-                The buffer is filled by auto captures or by subsequent calls of the method (capture). The sequence of the entries within the array is ordered
-                according to the sort method specified. Default: The buffer is empty after reset.
-                REMARK 1 Reading the entire buffer delivers only those entries, which are “in use”.
-                REMARK 2 The value of a captured object may be replaced by “null-data” if it can be unambiguously recovered from the previous value
-                (e.g. for time: if it can be calculated from the previous value and capture_period; or for a value: if it is equal to the previous value). """
+            """4.3.6 Profile generic: entry"""
             ELEMENTS = tuple(buffer_elements)
 
         self.buffer.set_type(Entry)
