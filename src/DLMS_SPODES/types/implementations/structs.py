@@ -55,3 +55,9 @@ class ObjectListElement(cdt.Structure):
     version: cdt.Unsigned
     logical_name: cst.LogicalName
     access_rights: AccessRight
+
+
+class UserListEntry(cdt.Structure):
+    """user_list_entry"""
+    user_id:   cdt.Unsigned
+    user_name: cdt.VisibleString

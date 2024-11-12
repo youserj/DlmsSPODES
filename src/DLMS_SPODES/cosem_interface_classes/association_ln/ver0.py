@@ -293,9 +293,7 @@ class AssociationLN(ic.COSEMInterfaceClasses):
                   ic.ICMElement("remove_object", ObjectListElement))
 
     def characteristics_init(self):
-        # self.set_attr(2, None)
         # self.object_list.selective_access = SelectiveAccessDescriptor()
-        self.set_attr(3, (0x10*self.logical_name.e, 1) if self.logical_name.e <= 4 else None)
         self.set_attr(4, None)
         self.set_attr(5, None)
         self.set_attr(8, None)
@@ -418,6 +416,11 @@ class AssociationLN(ic.COSEMInterfaceClasses):
         for el in self.object_list:
             ret.append(self.collection.get_object(el.logical_name))
         return ret
+
+    def get_lns(self) -> list[cst.LogicalName]:
+        """return all LogicalNames"""
+        el: ObjectListElement
+        return [el.logical_name  for el in self.object_list]
 
     def __check_empty_object_list(self):
         if self.object_list is None:

@@ -7,6 +7,7 @@ from ... import exceptions as exc
 from ..__class_init__ import *
 from ...types.implementations import integers, arrays, structs
 
+
 class CaptureObjects(cdt.Array):
     """ Specifies the list of capture objects """
     TYPE = structs.CaptureObjectDefinition
@@ -174,9 +175,14 @@ class ProfileGeneric(ver0.ProfileGeneric):
 
     def get_capture_object_names(self) -> list[str]:
         """ return all capture object names from collection """
-        match self.capture_objects:
-            case CaptureObjects(): return list(map(lambda definition: get_name(self.collection.get_object(definition).logical_name), self.capture_objects))
-            case _:                raise ValueError(F'{self}: Empty capture objects')
+        if self.capture_objects is None:
+            raise ValueError(F'{self}: Empty capture objects')
+        else:
+            definition: structs.CaptureObjectDefinition
+            ret = list()
+            for definition in self.capture_objects:
+                ret.append(get_name(definition.logical_name))
+            return ret
 
     def get_buffer_objects(self) -> list[cosem_interface_classes.cosem_interface_class.COSEMInterfaceClasses]:
         """ get objects of current buffer container """

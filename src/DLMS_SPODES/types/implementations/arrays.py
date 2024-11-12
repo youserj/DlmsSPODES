@@ -1,5 +1,7 @@
 from typing import Any
-from ...types import common_data_types as cdt, implementations as impl
+from ...types import common_data_types as cdt
+from .structs import UserListEntry
+from .double_long_usingneds import IPAddress
 
 
 class SelectionAccess(cdt.Array):
@@ -14,4 +16,9 @@ class SelectionAccess(cdt.Array):
 
 
 class MulticastIPAddress(cdt.Array):
-    TYPE = impl.double_long_usingneds.IPAddress
+    TYPE = IPAddress
+
+
+class UserList(cdt.Array):
+    """user_list. for AssociationLN(SN)"""
+    TYPE = UserListEntry

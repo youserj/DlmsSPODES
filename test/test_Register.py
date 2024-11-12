@@ -15,4 +15,3 @@ class TestType(unittest.TestCase):
         dt = obj.get_attr_element(2).DATA_TYPE
         print(dt)
         print(isinstance(dt, ut.CHOICE))
-

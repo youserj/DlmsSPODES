@@ -55,8 +55,7 @@ class ProfileGeneric(ic.COSEMInterfaceClasses):
     M_ELEMENTS = (
         ic.ICMElement("reset", integers.Only0),
         ic.ICMElement("capture", integers.Only0),
-        ...,
-        ...,
+        # more 2 elements
     )
 
     def characteristics_init(self):

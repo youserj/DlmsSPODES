@@ -52,3 +52,30 @@ class TestType(unittest.TestCase):
         readout.set_attr(2, bytes.fromhex("01 01 02 51 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 00 03 00 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 01 03 00"))
         desc = readout.get_attr_descriptor(2)
         print(readout)
+
+    def test_ver0(self):
+        col = collection.Collection()
+        col.spec_map = "SPODES_3"
+        pg1 = col.add(
+            class_id=overview.ClassID.PROFILE_GENERIC,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName("01 00 5e 07 04 ff")
+        )
+        pg2 = col.add(
+            class_id=overview.ClassID.PROFILE_GENERIC,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName.from_obis("1.0.99.1.0.255")
+        )
+        pg3 = col.add(
+            class_id=overview.ClassID.PROFILE_GENERIC,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName.from_obis("1.0.99.2.0.255")
+        )
+        pg4 = col.add_if_missing(
+            class_id=overview.ClassID.PROFILE_GENERIC,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName("00 00 15 00 01 ff")
+        )
+        ver = col.find_version(overview.ClassID.PROFILE_GENERIC)
+        print(col)
+        col2 = col.copy()

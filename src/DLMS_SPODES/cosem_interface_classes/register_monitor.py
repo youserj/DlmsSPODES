@@ -31,7 +31,7 @@ class RegisterMonitor(ic.COSEMInterfaceClasses):
 
     def characteristics_init(self):
         self.set_attr(2, None)
-        self._cbs_attr_post_init.update({3: self.__set_threshold_type})
+        self._cbs_attr_post_init.update({3: self.__set_threshold_type})  # todo: remove in future
 
     @property
     def thresholds(self) -> Thresholds:

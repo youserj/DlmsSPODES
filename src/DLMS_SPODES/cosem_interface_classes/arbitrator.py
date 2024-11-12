@@ -102,7 +102,3 @@ class Arbitrator(ic.COSEMInterfaceClasses):
                     """lenght is correct, change is not required """
         else:
             """not was loaded"""
-
-    def get_action_names(self) -> list[str]:
-        """return names of methods by ordering actions"""
-        return [self.collection.get_script_names(ln, selector) for ln, selector in self.actions]

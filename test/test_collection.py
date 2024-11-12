@@ -1,3 +1,4 @@
+from functools import lru_cache
 from itertools import count
 import time
 import unittest
@@ -40,6 +41,24 @@ firID_M2M_3 = collection.ParameterValue(
 
 
 class TestType(unittest.TestCase):
+
+    @lru_cache()
+    def create_collection(self) -> collection.Collection:
+        col = collection.Collection()
+        reg = col.add(
+            class_id=overview.ClassID.REGISTER,
+            version=overview.Version.V0,
+            logical_name=cst.LogicalName("01 00 01 07 00 ff")
+        )
+        col.add(
+            class_id=overview.ClassID.PROFILE_GENERIC,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName("01 00 5e 07 04 ff")
+        )
+        reg.set_attr(2, cdt.DoubleLongUnsigned(1234567890).encoding)
+        reg.set_attr(3, (-8, 33))
+        return col
+
     def test_ParVal(self):
         pv = collection.ParameterValue(
             par=bytes.fromhex("0000000201ff02"),
@@ -244,29 +263,6 @@ class TestType(unittest.TestCase):
         for i in range(n):
             col.copy()
         print((time.perf_counter()-s)/n)
-
-    def test_copy(self):
-        col = collection.get_collection(
-            manufacturer=b"KPZ",
-            server_type=collection.ParameterValue(
-                par=bytes.fromhex("0000600102ff02"),
-                value=cdt.OctetString(bytearray(b'M2M_3'))),
-            server_ver=collection.ParameterValue(
-                par=bytes.fromhex("0000000201ff02"),
-                value=cdt.OctetString(bytearray(b"1.4.13"))))
-        print(id(col.getAssociationBySAP(collection.enums.ClientSAP(0x30))), id(col.get_object("0.0.40.0.3.255")))
-        # print(col.getAssociationBySAP.cache_info())
-        # col.getAssociationBySAP.cache_clear()
-        col1 = collection.get_collection(
-            manufacturer=b"KPZ",
-            server_type=collection.ParameterValue(
-                par=bytes.fromhex("0000600102ff02"),
-                value=cdt.OctetString(bytearray(b'M2M_3'))),
-            server_ver=collection.ParameterValue(
-                par=bytes.fromhex("0000000201ff02"),
-                value=cdt.OctetString(bytearray(b"1.4.13"))))
-        print(id(col1.getAssociationBySAP(collection.enums.ClientSAP(0x30))), id(col1.get_object("0.0.40.0.3.255")))
-        # print(col1.getAssociationBySAP.cache_info())
 
     def test_set_date_for_calibrator(self):
         import datetime
@@ -543,14 +539,7 @@ class TestType(unittest.TestCase):
                 print(F"{obj.CLASS_ID} {obj.logical_name.get_report()}:{i} {res}")
 
     def test_get_report(self):
-        col = collection.get_collection(
-            manufacturer=b"KPZ",
-            server_type=collection.ParameterValue(
-                par=bytes.fromhex("0000600102ff02"),
-                value=cdt.OctetString(bytearray(b'M2M_1'))),
-            server_ver=collection.ParameterValue(
-                par=bytes.fromhex("0000000201ff02"),
-                value=cdt.OctetString(bytearray(b"1.5.15"))))
+        col = self.create_collection()
         rep_count = count()
         # for obj in collection.get_filtered(col, (collection.ClassID.LIMITER,)):
         for obj in col:
@@ -563,7 +552,7 @@ class TestType(unittest.TestCase):
                 while stack:
                     value, par = stack.pop()
                     rep = col.get_report(obj, bytes(par), value)
-                    print(F"{obj.logical_name.get_report()} {i}: {rep=}")
+                    print(F"{obj.logical_name.get_report()} {', '.join(map(str, par))}: {rep=}")
                     next(rep_count)
                     match value:
                         case cdt.Structure():

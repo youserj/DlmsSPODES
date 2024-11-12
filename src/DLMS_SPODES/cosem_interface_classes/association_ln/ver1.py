@@ -91,17 +91,15 @@ class MechanismNameType(cdt.AXDR, authentication_mechanism_name.AuthenticationMe
 
 
 class AssociationLN(ver0.AssociationLN):
-    """ COSEM logical devices able to establish application associations within a COSEM context using logical name referencing, model the associations
-    through instances of the “Association LN” class. A COSEM logical device has one instance of this IC for each association
-    the device is able to support"""
+    """5.4.6 Association LN"""
     VERSION = Version.V1
     A_ELEMENTS = (ic.ICAElement("object_list", ObjectListType, selective_access=ver0.SelectiveAccessDescriptor),
-                  ver0.AssociationLN.get_attr_element(3),
+                  ver0.AssociationLN.get_attr_element(3),  # associated_partners_id
                   ic.ICAElement("application_context_name", ContextNameType),
-                  ver0.AssociationLN.get_attr_element(5),
+                  ver0.AssociationLN.get_attr_element(5),  # xDLMS_context_info
                   ic.ICAElement("authentication_mechanism_name", MechanismNameType),
-                  ver0.AssociationLN.get_attr_element(7),  # TODO: make new class Secret(LLC_Secret)
-                  ver0.AssociationLN.get_attr_element(8),
+                  ic.ICAElement("secret", ver0.LLCSecret),  # TODO: make new class Secret(LLC_Secret)
+                  ver0.AssociationLN.get_attr_element(8),  # association_status
                   ic.ICAElement("security_setup_reference", cst.LogicalName))
     M_ELEMENTS = (ver0.AssociationLN.get_meth_element(1),
                   ver0.AssociationLN.get_meth_element(2),

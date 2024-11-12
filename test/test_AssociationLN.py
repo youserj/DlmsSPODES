@@ -1,10 +1,9 @@
-import os
-import time
 import unittest
 from src.DLMS_SPODES.types import cdt, cst, ut
 from src.DLMS_SPODES.cosem_interface_classes import collection, overview
 from src.DLMS_SPODES.cosem_interface_classes.association_ln.authentication_mechanism_name import AuthenticationMechanismName
 from src.DLMS_SPODES.cosem_interface_classes.association_ln import mechanism_id
+from src.DLMS_SPODES.cosem_interface_classes.association_ln.ver0 import AssociatedPartnersType, AssociationLN
 
 
 class TestType(unittest.TestCase):
@@ -33,3 +32,17 @@ class TestType(unittest.TestCase):
         self.assertEqual(m_id_el>m_id_el2, False, "comparing")
         self.assertEqual(m_id_el3==m_id_el2, True, "comparing")
         self.assertEqual(m_id_el3>=m_id_el4, True, "comparing")
+
+    def test_AssociatedPartnersType(self):
+        a_p_t = AssociatedPartnersType()
+        print(a_p_t)
+
+    def test_init(self):
+        ass = AssociationLN("00 00 28 00 00 ff")
+        col = collection.Collection()
+        ass = col.add(
+            class_id=overview.ClassID.ASSOCIATION_LN,
+            version=overview.Version.V1,
+            logical_name=cst.LogicalName("00 00 28 00 00 ff")
+        )
+        print(ass)

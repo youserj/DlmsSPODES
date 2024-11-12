@@ -162,41 +162,15 @@ class COSEMInterfaceClasses(ABC):
         cls.hash_ = next(_n_class)
         # print(cls.__name__)
 
-    def copy(self, source: Self, association_id: int = 3):
-        """copy object according by association"""
-        for i, value in source.get_index_with_attributes():
-            el = self.get_attr_element(i)
-            if i == 1 or value is None or (not isinstance(el.DATA_TYPE, ut.CHOICE) and el.classifier == Classifier.DYNAMIC):
-                continue
-            else:
-                if source.collection is not None and self.get_attr_element(i).classifier == Classifier.STATIC and not source.collection.is_writable(ln=self.logical_name,
-                                                                                                                                                    index=i,
-                                                                                                                                                    association_id=association_id):
-                    # Todo: may be callbacks inits remove?
-                    if cb_func := self._cbs_attr_before_init.get(i, None):
-                        cb_func(value)                    # Todo: 'a' as 'new_value' in set_attr are can use?
-                        self._cbs_attr_before_init.pop(i)
-                    self.__attributes[i-1] = value
-                    if cb_func := self._cbs_attr_post_init.get(i, None):
-                        cb_func()
-                        self._cbs_attr_post_init.pop(i)
-                else:
-                    if isinstance(arr := self.__attributes[i-1], cdt.Array):
-                        arr.set_type(value.TYPE)
-                    try:
-                        self.set_attr(
-                            index=i,
-                            value=value.encoding,
-                            data_type=source.get_attr(i).__class__)
-                    except exc.EmptyObj as e:
-                        logger.warning(F"can't copy {self} attr={i}, skipped. {e}")
-
     @classmethod
     def get_attr_element(cls, i: int) -> ICAElement:
         """return element by order index. Override in each new class"""
-        match i:
-            case 1: return _LN_ELEMENT
-            case _: return cls.A_ELEMENTS[i - 2]
+        if i == 1:
+            return _LN_ELEMENT
+        elif i > len(cls.A_ELEMENTS) + 1:
+            raise exc.DLMSException(F"got attribute index: {i}, expected 1..{len(cls.A_ELEMENTS) + 1}")
+        else:
+            return cls.A_ELEMENTS[i - 2]
 
     @classmethod
     def get_meth_element(cls, i: int) -> ICMElement:

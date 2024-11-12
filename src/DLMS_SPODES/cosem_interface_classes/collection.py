@@ -64,9 +64,14 @@ from ..config_parser import config, get_values
 from ..obis import media_id
 
 
+class CollectionMapError(exc.DLMSException):
+    """"""
+
+
 _report = {
     "empty": "--",
     "empty_unit": "??",
+    "scaler_format": "{:.3f}"
 }
 if toml_val := get_values("DLMS", "report"):
     _report.update(toml_val)
@@ -248,12 +253,12 @@ def get_interface_class(class_map: dict[int, CosemClassMap], c_id: ut.CosemClass
         if ret2:
             return ret2
         else:
-            raise ValueError(F"not valid {ver=} for {c_id=}")
+            raise CollectionMapError(F"got DLMS class version: {ver} for {c_id=}, expected: {", ".join(map(str, ret.keys()))}")
     else:
         if int(c_id) not in common_interface_class_map.keys():
-            raise ValueError(F"unknown {c_id=}")
+            raise CollectionMapError(F"unknown {c_id=}")
         else:
-            raise ValueError(F"got {c_id=}, expected {', '.join(map(str, class_map.keys()))}")
+            raise CollectionMapError(F"got {c_id=}, expected {', '.join(map(str, class_map.keys()))}")
 
 
 _CUMULATIVE = (1, 2, 11, 12, 21, 22)
@@ -620,6 +625,7 @@ def get_filtered(objects: Iterable[InterfaceClass],
         new_list.append(obj)
     return new_list
 
+
 @dataclass(unsafe_hash=True, frozen=True)
 class ParameterValue:
     par: bytes
@@ -695,8 +701,49 @@ class Collection:
     def __hash__(self):
         return hash(self.id)
 
-    def copy(self) -> Self:
-        """no return <firmware version>"""
+    def copy_object_values(self, target: ic.COSEMInterfaceClasses, association_id: int = 3):
+        """copy object values according by association. only needed"""
+        source = self.get(target.logical_name.contents)
+        for i, value in source.get_index_with_attributes():
+            el = target.get_attr_element(i)
+            if (
+                i == 1
+                or value is None
+                or (
+                    not isinstance(el.DATA_TYPE, ut.CHOICE)
+                    and el.classifier == ic.Classifier.DYNAMIC
+                )
+            ):
+                continue
+            else:
+                if (
+                    target.get_attr_element(i).classifier == ic.Classifier.STATIC
+                    and not self.is_writable(
+                        ln=target.logical_name,
+                        index=i,
+                        association_id=association_id)
+                ):
+                    # todo: may be callbacks inits remove?
+                    if cb_func := target._cbs_attr_before_init.get(i, None):
+                        cb_func(value)  # Todo: 'a' as 'new_value' in set_attr are can use?
+                        target._cbs_attr_before_init.pop(i)
+                    target.set_attr(i, value.encoding)
+                    if cb_func := target._cbs_attr_post_init.get(i, None):
+                        cb_func()
+                        target._cbs_attr_post_init.pop(i)
+                else:
+                    if isinstance(arr := target.get_attr(i), cdt.Array):
+                        arr.set_type(value.TYPE)
+                    try:
+                        target.set_attr(
+                            index=i,
+                            value=value.encoding,
+                            data_type=source.get_attr(i).__class__)
+                    except exc.EmptyObj as e:
+                        logger.warning(F"can't copy {target} attr={i}, skipped. {e}")
+
+    def copy(self) -> tuple[Self, list[Exception]]:
+        """copy collection with value by Association"""
         new_collection = Collection(
             id_=self.id,
             dlms_ver=self.__dlms_ver,
@@ -704,6 +751,7 @@ class Collection:
             cntr_ver=self.__country_ver,
         )
         new_collection.spec_map = self.spec_map
+        err: list[Exception] = list()
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
         for obj in self.__container.values():
@@ -718,28 +766,20 @@ class Collection:
                         or len(max_ass.object_list) < len(obj.object_list)
                     ):
                         max_ass = obj
-        obj_for_set = max_ass.get_objects()
+        if max_ass is None:
+            raise exc.NoObject("collection not has the AssociationLN object")
+        ln_for_set = max_ass.get_lns()
         ass_id: int = max_ass.logical_name.e
-        last_length = len(obj_for_set)
-        raise_count = None
-        while len(obj_for_set) != 0:
-            obj = obj_for_set.pop(0)
+        while len(ln_for_set) != 0:
+            ln = ln_for_set.pop(0)
             try:
-                new_collection.__container.get(obj.logical_name.contents).copy(obj, ass_id)
-                raise_count = None
+                new_obj = new_collection.get_object(ln.contents)
+                self.copy_object_values(
+                    target=new_obj,
+                    association_id=ass_id)
             except Exception as e:
-                if last_length == len(obj_for_set):
-                    if not raise_count:
-                        raise_count = count(last_length, -1)
-                        continue
-                    else:
-                        next(raise_count)
-                        raise e
-                else:
-                    last_length = len(obj_for_set)
-                    logger.warning(F"can't set value. {e}. leftover {len(obj_for_set)} objects")
-                    obj_for_set.append(obj)
-        return new_collection
+                err.append(e)
+        return new_collection, err
 
     @property
     def dlms_ver(self):
@@ -812,13 +852,13 @@ class Collection:
                        version: cdt.Unsigned | None,
                        logical_name: cst.LogicalName) -> InterfaceClass:
         """ like as add method with check for missing """
-        if not self.__container.get(logical_name.contents):
+        if (res := self.__container.get(logical_name.contents)) is None:
             return self.add(
                 class_id=class_id,
                 version=version,
                 logical_name=logical_name)
         else:
-            return self.__get_object(logical_name.contents)
+            return res
 
     def get(self, obis: bytes) -> InterfaceClass | None:
         """ get object, return None if it absence """
@@ -918,7 +958,7 @@ class Collection:
                     rep.unit = cdt.Unit(unit).get_name()
                 else:
                     if s_u := self.get_scaler_unit(obj, par):
-                        rep.msg = str(int(a_val) * 10 ** int(s_u.scaler))
+                        rep.msg = (_report["scaler_format"]).format(int(a_val) * 10 ** int(s_u.scaler))
                         rep.unit = s_u.unit.get_name()
                     else:
                         match obj.CLASS_ID, *par:
@@ -941,6 +981,7 @@ class Collection:
                         ) -> cdt.ScalUnitType | None:
         match obj.CLASS_ID, *par:
             case (ClassID.REGISTER, 2) | (ClassID.DEMAND_REGISTER, 2 | 3):
+                obj: Register | DemandRegister
                 if (s_u := obj.scaler_unit) is None:
                     raise ic.EmptyAttribute(obj.logical_name, 3)
                 else:
@@ -951,11 +992,20 @@ class Collection:
             case ClassID.LIMITER, 3 | 4 | 5:
                 obj: Limiter
                 if m_v := obj.monitored_value:
-                    return self.get_scaler_unit(
+                    return self.get_scaler_unit(  # recursion 1 level
                         obj=self.get_object(m_v.logical_name),
-                        par=m_v.attribute_index.contents)  # recursion 1 level
+                        par=m_v.attribute_index.contents)
                 else:
                     raise ic.EmptyAttribute(obj.logical_name, 2)
+            case ClassID.REGISTER_MONITOR, 2, _:
+                obj: RegisterMonitor
+                if (m_v := obj.monitored_value) is None:
+                    raise ic.EmptyAttribute(obj.logical_name, 3)
+                else:
+                    return self.get_scaler_unit(  # recursion 1 level
+                        obj=self.get_object(m_v.logical_name),
+                        par=m_v.attribute_index.contents
+                    )
             case _:
                 return None
 
@@ -1091,10 +1141,6 @@ class Collection:
 
     def getASSOCIATION(self, instance: int) -> AssociationLN:
         return self.__get_object(bytes((0, 0, 40, 0, instance, 255)))
-
-    @deprecated("use sap2association")
-    def getAssociationBySAP(self, SAP: enums.ClientSAP) -> AssociationLN:
-        return self.__get_object(bytes((0, 0, 40, 0, self.get_association_id(SAP), 255)))
 
     @cached_property
     def PUBLIC_ASSOCIATION(self) -> AssociationLN:
@@ -1275,8 +1321,11 @@ class Collection:
             raise ValueError(F"absent association with {client_sap}")
 
     def sap2association(self, sap: enums.ClientSAP) -> AssociationLN:
-        for ass in get_filtered(self, (ln_pattern.NON_CURRENT_ASSOCIATION,)):
-            if ass.associated_partners_id.client_SAP == sap:
+        for ass in get_filtered(self, (ClassID.ASSOCIATION_LN,)):
+            if (
+                ass.associated_partners_id is not None
+                and ass.associated_partners_id.client_SAP == sap
+            ):
                 return ass
             else:
                 continue

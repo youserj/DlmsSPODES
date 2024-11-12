@@ -88,16 +88,3 @@ class SpecialDaysTable(ic.COSEMInterfaceClasses):
                 return
         else:
             raise ValueError(F'not found entry with index {self.delete} for remove')
-
-    def get_day_id_of_current_special_day(self, server_time: datetime.datetime = None) -> cdt.Unsigned | None:
-        """ return day ID if special day if it in today else None """
-        server_time = self.collection.current_time if server_time is None else server_time
-        if self.entries is None:
-            raise AttributeError('Special days table: attribute Entries is empty. Need receive it from server')
-        else:
-            current_date: datetime.date = server_time.date()
-            for spec_day_entry in self.entries:
-                if spec_day_entry.specialday_date.decode() == current_date:
-                    return spec_day_entry.day_id
-            else:
-                return None

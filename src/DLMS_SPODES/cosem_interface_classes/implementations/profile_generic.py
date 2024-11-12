@@ -1,4 +1,4 @@
-from ..profile_generic import ver1
+from ..profile_generic import ver0, ver1
 from ...types.implementations import structs, enums
 from ...types import ut, cdt
 
@@ -48,10 +48,10 @@ class SPODES3DisplayReadout(ver1.ProfileGeneric):
                   ver1.ProfileGeneric.A_ELEMENTS[6])
 
     def characteristics_init(self):
-        self.set_attr(ver1.BUFFER, None)
+        self.set_attr(ver0.BUFFER, None)
         self.buffer.register_cb_preset(lambda _: self.__create_buffer_struct_type())  # value not used for creating struct type
 
-        self._cbs_attr_post_init.update({ver1.CAPTURE_OBJECTS: self.__create_buffer_struct_type})
+        self._cbs_attr_post_init.update({ver0.CAPTURE_OBJECTS: self.__create_buffer_struct_type})
 
         self.buffer_capture_objects = self.capture_objects
         """ objects for buffer. Change with access_selection """

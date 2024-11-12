@@ -190,67 +190,6 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
     def ActivatePassiveCalendar(cls, value=None) -> integers.Only0:
         return cls.M_ELEMENTS[0].DATA_TYPE
 
-    def get_current_season(self, server_time: datetime.datetime = None) -> Season:
-        """ current server season by current time """
-        server_time = self.collection.current_time if server_time is None else server_time
-        active_season: tuple[Season | None, datetime.datetime] = None, datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=datetime.timezone.utc)
-        if self.season_profile_active is None:
-            raise AttributeError(F'{self}: attribute Season profile is empty. Need receive it from server')
-        for season in self.season_profile_active:
-            season: Season
-            left_point = season.season_start.get_left_nearest_datetime(server_time)
-            if active_season[1] < left_point:
-                active_season = season, left_point
-        if active_season[0] is None:
-            raise AttributeError('Season Not found in Activity calendar object')
-        else:
-            return active_season[0]
-
-    def get_current_week(self, server_time: datetime.datetime = None) -> WeekProfile:
-        """ current server week by current time """
-        season = self.get_current_season(server_time)
-        if self.week_profile_table_active is None:
-            raise AttributeError(F'{self}: attribute Week profile is empty. Need receive it from server')
-        for week_profile in self.week_profile_table_active:
-            week_profile: WeekProfile
-            if week_profile.week_profile_name == season.week_name:
-                return week_profile
-        raise AttributeError('Week Not found in Activity calendar object')
-
-    def get_current_day(self, server_time: datetime.datetime = None) -> DayProfile:
-        """ current server day by current time """
-        server_time = self.collection.current_time if server_time is None else server_time
-        special_day_table: sdt.SpecialDaysTable = self.collection.special_day_table
-        day_id = special_day_table.get_day_id_of_current_special_day(server_time)
-        if day_id is None:
-            weekday = server_time.weekday()+1
-            week = self.get_current_week(server_time)
-            day_id = week[weekday]
-        for day_profile in self.day_profile_table_active:
-            day_profile: DayProfile
-            if day_profile.day_id == day_id:
-                return day_profile
-        raise AttributeError(F'Day Id: {day_id} not found in Day profile table active')
-
-    def get_current_action(self) -> DayProfileAction:
-        """ current server day action by current time """
-        server_time = self.collection.current_time
-        day = self.get_current_day(server_time)
-        active: tuple[DayProfileAction | None, datetime.time] = None, datetime.time(hour=0, minute=0, second=0)
-        for day_profile_action in day.day_schedule:
-            day_profile_action: DayProfileAction
-            left_point = day_profile_action.start_time.get_left_nearest_time(server_time.time())
-            if left_point is not None and active[1] < left_point:
-                active = day_profile_action, left_point
-        if active[0] is None:
-            raise AttributeError('Action Not found in Activity calendar object')
-        else:
-            return active[0]
-
-    def get_current_rate(self) -> int:
-        """ return script selector as rate number or AttributeError """
-        return self.get_current_action().script_selector.decode()
-
     def validate(self):
         def validate_seasons(index: int):
             def handle_duplicates(name: str):
