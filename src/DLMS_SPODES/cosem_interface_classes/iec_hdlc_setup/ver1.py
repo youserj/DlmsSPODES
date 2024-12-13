@@ -75,29 +75,6 @@ class IECHDLCSetup(ic.COSEMInterfaceClasses):
         if self.windows_size_receive.decode() != self.get_attr_element(4).default:
             return self.windows_size_receive.contents
 
-    def set_from_info(self, info: bytes):
-        """ negotiation from client """
-        if info[:2] == b'\x81\x80':
-            info = info.removeprefix(b'\x81\x80')
-            length, info = info[0], info[1:]
-            if length == len(info):
-                while len(info) != 0:
-                    tag, value_length, info = info[:1], info[1], info[2:]
-                    value, info = info[:value_length], info[value_length:]
-                    match tag:
-                        case b'\x05': self.set_attr(5, cdt.LongUnsigned(int.from_bytes(value, 'big')))
-                                      # self.max_info_field_length_transmit.contents = (bytes(2)+value)[-2:]
-                        case b'\x06': self.set_attr(6, cdt.LongUnsigned(int.from_bytes(value, 'big')))
-                        case b'\x07': self.set_attr(3, cdt.Unsigned(int.from_bytes(value, 'big')))
-                        case b'\x08': self.set_attr(4, cdt.Unsigned(int.from_bytes(value, 'big')))
-                        case _:       raise ValueError(F'Invalid UA response. Got {tag.hex(" ")} from supported 05, 06, 07, 08')
-            else:
-                raise ValueError(F'HDLS negotiation length wrong, must be {length}, got {len(info)}')
-        elif len(info) == 0:
-            deque(map(self.reset_attribute, (3, 4, 5, 6)))
-        else:
-            raise ValueError(F'HDLS negotiation header wrong, must be 81 80, got {info[:2].hex(" ")}')
-
     def get_device_address(self) -> int | None:
         """ return device address decoding if it used. Value is 0 not used """
         ret = self.device_address.decode()

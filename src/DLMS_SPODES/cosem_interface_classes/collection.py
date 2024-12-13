@@ -15,7 +15,7 @@ from ..types import common_data_types as cdt, cosem_service_types as cst, useful
 from ..types.implementations import structs, enums, octet_string
 from . import cosem_interface_class as ic
 from .ln_pattern import LNPattern, LNPatterns
-from .activity_calendar import ActivityCalendar
+from .activity_calendar import ActivityCalendar, DayProfileAction
 from .arbitrator import Arbitrator
 from .association_ln import mechanism_id
 from .association_sn.ver0 import AssociationSN as AssociationSNVer0
@@ -60,7 +60,7 @@ from ..cosem_interface_classes import implementations as impl
 from ..cosem_interface_classes.overview import ClassID, Version, CountrySpecificIdentifiers
 from . import obis as o, ln_pattern
 from .. import pdu_enums as pdu
-from ..config_parser import config, get_values
+from ..config_parser import config, get_values, get_message
 from ..obis import media_id
 
 
@@ -953,6 +953,14 @@ class Collection:
                 rep.log = cdt.EMPTY_VAL
             elif isinstance(a_val, cdt.ReportMixin):
                 rep = a_val.get_report()
+            elif isinstance(a_val, DayProfileAction):
+                rep.msg = F"{get_message("$rate$")}-{a_val.script_selector}: {a_val.start_time}"
+                script_obj = self.get_object(a_val.script_logical_name)
+                for script in script_obj.scripts:
+                    if script.script_identifier == a_val.script_selector:
+                        break
+                else:
+                    rep.log = cdt.Log(logging.ERROR, F"absent script with ID: {a_val.script_selector}")
             else:
                 if unit := get_unit(obj.CLASS_ID, par):
                     rep.unit = cdt.Unit(unit).get_name()
@@ -1016,18 +1024,15 @@ class Collection:
             ret.append(self.__get_object(olt.logical_name.contents))
         return ret
 
-    def get_objects_list(self, value: enums.ClientSAP) -> list[ic.COSEMInterfaceClasses]:
-        for association in self.get_objects_by_class_id(ut.CosemClassId(15)):
-            if association.associated_partners_id.client_SAP == value and association.logical_name.e != 0:
-                if association.object_list is None:
-                    raise exc.EmptyObj(F'{association} attr: 2')
-                else:
-                    ret = list()
-                    for el in association.object_list:
-                        ret.append(self.__get_object(el.logical_name.contents))
-                    return ret
-        else:
-            raise ValueError(F'Not found association with client SAP: {value}')
+    def sap2objects(self, value: enums.ClientSAP) -> tuple[list[ic.COSEMInterfaceClasses], list[Exception]]:
+        ret = list()
+        err = list()
+        for ln in self.sap2association(value).get_lns():
+            try:
+                ret.append(self.__get_object(ln.contents))
+            except exc.NoObject as e:
+                err.append(e)
+        return ret, err
 
     def get_attr(self, value: ut.CosemAttributeDescriptor) -> cdt.CommonDataTypes:
         """attribute value from descriptor"""

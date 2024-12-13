@@ -582,6 +582,7 @@ class Digital(ABC):
 
 type BitNumber = int
 
+
 class IntegerFlag(ReportMixin, Digital, ABC):
     """value with represent __int__ to string"""
     NAMES: dict[BitNumber, Message] = None

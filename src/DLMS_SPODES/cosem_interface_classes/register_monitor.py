@@ -31,7 +31,6 @@ class RegisterMonitor(ic.COSEMInterfaceClasses):
 
     def characteristics_init(self):
         self.set_attr(2, None)
-        self._cbs_attr_post_init.update({3: self.__set_threshold_type})  # todo: remove in future
 
     @property
     def thresholds(self) -> Thresholds:
@@ -44,6 +43,3 @@ class RegisterMonitor(ic.COSEMInterfaceClasses):
     @property
     def threshold_normal(self) -> Actions:
         return self.get_attr(4)
-
-    def __set_threshold_type(self):
-        self.thresholds.set_type(self.collection.get_object(self.monitored_value.logical_name).get_attr(int(self.monitored_value.attribute_index)).__class__)

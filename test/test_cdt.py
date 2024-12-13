@@ -254,3 +254,8 @@ class TestType(unittest.TestCase):
         value = cdt.OctetString("31 2e 32 2k 30")
         semver = cdt.encoding2semver(value.encoding)
         self.assertEqual(cdt.SemVer(1,2,0), semver)
+
+    def test_Digital(self):
+        value = cdt.Unsigned(1)
+        value += 1
+        self.assertEqual(value, cdt.Unsigned(2))

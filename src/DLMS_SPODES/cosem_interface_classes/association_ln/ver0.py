@@ -275,9 +275,7 @@ class CosemAttributeDescriptorWithSelection(ut.CosemAttributeDescriptorWithSelec
 
 
 class AssociationLN(ic.COSEMInterfaceClasses):
-    """ COSEM logical devices able to establish application associations within a COSEM context using logical name referencing, model the associations
-    through instances of the “Association LN” class. A COSEM logical device has one instance of this IC for each association
-    the device is able to support"""
+    """5.4.5 Association LN"""
     CLASS_ID = ClassID.ASSOCIATION_LN
     VERSION = Version.V0
     A_ELEMENTS = (ic.ICAElement("object_list", ObjectListType, selective_access=SelectiveAccessDescriptor),
@@ -299,7 +297,6 @@ class AssociationLN(ic.COSEMInterfaceClasses):
         self.set_attr(8, None)
         # init secret after set authentication_mechanism_name(6)
         self._cbs_attr_post_init.update({
-            5: self.__check_dlms_version_with_collection,
             6: self.__init_secret,
             7: self.__check_mechanism_id_existing})
 
@@ -364,43 +361,6 @@ class AssociationLN(ic.COSEMInterfaceClasses):
             case mechanism_id.HIGH, _:                                        self.set_attr_link(7, LLCSecretHigh())
             case unknown, _:                                                            raise ValueError(F'Not support Secret with {unknown}')
 
-    def __check_dlms_version_with_collection(self):
-        self.collection.set_dlms_ver(int(self.xDLMS_context_info.dlms_version_number))
-
-    @property
-    def objects(self) -> list[ic.COSEMInterfaceClasses]:
-        """ get all DLMS object in association"""
-        try:
-            return self.client_objects_list(self.associated_partners_id.client_SAP)
-        except AttributeError as e:
-            raise exc.NoObject('Objects list is empty')
-
-    def client_objects_list(self, value: enums.ClientSAP) -> list[ic.COSEMInterfaceClasses]:
-        """rudiment. use collection.get_object_list. TODO: remove in future"""
-        for association in self.collection.get_objects_by_class_id(ut.CosemClassId(15)):
-            if association.associated_partners_id.client_SAP == value and association.logical_name.e != 0:
-                match association.object_list:
-                    case ObjectListType():
-                        ret = list()
-                        for obj_list_type in association.object_list:
-                            try:
-                                obj = self.collection.get_object(obj_list_type)
-                                if obj in ret:
-                                    print(F'Double intersection {obj}')
-                                else:
-                                    ret.append(obj)
-                            except exc.NoObject as e:
-                                print(F'DLMS object not append to client object list. {e}')
-                        return ret
-                    case _:                raise exc.EmptyObj(F'{association} attr: 2')
-        else:
-            raise ValueError(F'Not found association with client SAP: {value}')
-
-    @property
-    def source_address(self) -> bytes:
-        """ source address from client_SAP. ISO/IEC 13239:2002(E), Annex H, H.4 Frame format type 3 (page 128). """
-        return (int(self.associated_partners_id.client_SAP) << 1 | 1).to_bytes(1, 'big')
-
     def get_attr_descriptor(self,
                             value: int,
                             with_selection: bool = False) -> ut.CosemAttributeDescriptor | CosemAttributeDescriptorWithSelection:
@@ -410,12 +370,6 @@ class AssociationLN(ic.COSEMInterfaceClasses):
             return CosemAttributeDescriptorWithSelection((descriptor, self.object_list.selective_access))
         else:
             return descriptor
-
-    def get_objects(self) -> list[ic.COSEMInterfaceClasses]:
-        ret = list()
-        for el in self.object_list:
-            ret.append(self.collection.get_object(el.logical_name))
-        return ret
 
     def get_lns(self) -> list[cst.LogicalName]:
         """return all LogicalNames"""
@@ -485,6 +439,7 @@ class AssociationLN(ic.COSEMInterfaceClasses):
             case err:
                 raise exc.ITEApplication(F"unsupport access: {err}")
 
+
 def is_attr_writable(
         mode: AccessMode,
         security_policy: pdu.SecurityPolicy = pdu.SecurityPolicyVer0.NOTHING) -> bool:
@@ -509,4 +464,3 @@ def is_attr_writable(
                 raise TypeError(F"unknown {security_policy.__class__}: {security_policy}")
         case err:
             raise exc.ITEApplication(F"unsupport access: {err}")
-

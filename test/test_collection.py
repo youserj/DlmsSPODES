@@ -57,6 +57,23 @@ class TestType(unittest.TestCase):
         )
         reg.set_attr(2, cdt.DoubleLongUnsigned(1234567890).encoding)
         reg.set_attr(3, (-8, 33))
+        activity_calendar_obj = col.add(
+            class_id=overview.ClassID.ACTIVITY_CALENDAR,
+            version=overview.Version.V0,
+            logical_name=cst.LogicalName.from_obis("0.0.13.0.0.255")
+        )
+        activity_calendar_obj.set_attr(
+            9,
+            [
+                (1, [("01:00", "00 00 0A 00 64 FF", 1),]),
+                (2, [("02:00", "00 00 0A 00 64 FF", 2),])
+            ])
+        script_obj = col.add(
+            class_id=overview.ClassID.SCRIPT_TABLE,
+            version=overview.Version.V0,
+            logical_name=cst.LogicalName("00 00 0a 00 64 ff")
+        )
+        script_obj.set_attr(2, [(1, [(2, 3, "01 00 01 07 00 FF", 2, None)])])
         return col
 
     def test_ParVal(self):
@@ -628,11 +645,8 @@ class TestType(unittest.TestCase):
         vol_ev_obj.set_attr(2, 1)
         print(col.get_report(vol_ev_obj, b'\x02', vol_ev_obj.value))
 
-    def test_no_valid(self):
-        col = collection.Collection()
-        col.add(
-            class_id=overview.ClassID.PROFILE_GENERIC,
-            version=overview.Version.V1,
-            logical_name=cst.LogicalName("01 00 5e 07 04 ff")
-        )
+    def test_create(self):
+        col = self.create_collection()
         print(col)
+        obj = col.get_object("0.0.13.0.0.255")
+        # col.get_report(obj, b'\x09', )
