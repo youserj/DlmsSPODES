@@ -12,6 +12,7 @@ import logging
 from semver import Version as SemVer
 from ..config_parser import config, get_values
 from .. import config_parser
+from .. import exceptions as exc
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,18 @@ logger.level = logging.INFO
 
 
 Level: TypeAlias = logging.INFO | logging.WARN | logging.ERROR
+
+
+class CDTError(exc.DLMSException):
+    """common error for CDT"""
+
+
+class OutOfRange(CDTError):
+    """out of range for CommonDataType"""
+
+
+class ValidationError(CDTError):
+    """CommonDataType value not valid"""
 
 
 @dataclass
@@ -201,8 +214,7 @@ class CommonDataType(ABC):
         raise ValueError(F"not supported for {self.TAG}")
 
     def validate(self):
-        """:raises ValueError if not"""
-        raise ValueError(F"not supported for {self.__class__.__name__}")
+        """override validation if need"""
 
     @classmethod
     def get_types(cls):
@@ -606,6 +618,26 @@ class IntegerFlag(ReportMixin, Digital, ABC):
         msg += F" {" | ".join(flags)}"
         return Report(msg, log=l)
 
+    def __iter__(self):
+        def g():
+            value = int(self)
+            for _ in range(self.LENGTH * 8):
+                yield value & 0b1
+                value >>= 1
+
+        return g()
+
+    def __getitem__(self, item):
+        return tuple(self)[item]
+
+    def __setitem__(self, key: int, value: int | bool):
+        val = int(self) & ~(1 << key)
+        value = (1 << key) if value else 0  # cust to INTEGER and move
+        self.__dict__["contents"] = self.__class__(val | value).contents
+
+    def toggle(self, index: int):
+        self[index] = not self[index]
+
 
 class Float(ABC):
     contents: bytes
@@ -824,7 +856,7 @@ class __Date(ABC):
             contents[:2] = value.to_bytes(2, 'big')
             self.set(contents)
         else:
-            raise ValueError(F'Year out of range, got {value}, expected 1..9999, 65535')
+            raise OutOfRange(F"in year: got {value}, expected 1..9999, 65535")
 
     def set_month(self, value: int):
         """ set month """
@@ -833,7 +865,7 @@ class __Date(ABC):
             contents[2] = value
             self.set(contents)
         else:
-            raise ValueError(F'Month out of range, got {value}, expected 1..12, 255')
+            raise OutOfRange(F"in Month: got {value}, expected 1..12, 255")
 
     def set_day(self, value: int):
         """ set day """
@@ -842,7 +874,7 @@ class __Date(ABC):
             contents[3] = value
             self.set(contents)
         else:
-            raise ValueError(F'Day out of range, got {value}, expected 1..31, 255')
+            raise OutOfRange(F"in Day: got {value}, expected 1..31, 255")
 
     def set_weekday(self, value: int):
         """ set weekday """
@@ -850,6 +882,8 @@ class __Date(ABC):
             contents = bytearray(self.contents)
             contents[4] = value
             self.set(contents)
+        else:
+            raise OutOfRange(F"got <week day>: {value}, excpected 1..7 or 255")
 
     @abstractmethod
     def decode(self) -> datetime.datetime:
@@ -858,7 +892,7 @@ class __Date(ABC):
     @staticmethod
     def check_date(value: bytes):
         if len(value) != 5:
-            raise ValueError(F'In the Date type expected length 5, but got {len(value)}')
+            raise ValidationError(F"In the Date type expected length 5, but got {len(value)}")
         year_highbyte, year_lowbyte, month, day_of_month, day_of_week = \
             value[0:2].replace(b'\xff\xff', b'\x01\x00') + \
             value[2:4].replace(b'\xff', b'\x01').replace(b'\xfe', b'\x01').replace(b'\xfd', b'\x01') + \
@@ -866,7 +900,7 @@ class __Date(ABC):
         if datetime.date(year_highbyte * 256 + year_lowbyte, month, day_of_month).weekday() != \
                 day_of_week - 1 and value[4:] != b'\xff' and value[0:2] != b'\xff\xff' and \
                 value[2:3] not in b'\xfd\xfe\xff' and value[2:3] not in b'\xfd\xfe\xff':
-            raise ValueError('Error init Data: week day wrong')
+            raise ValidationError(F"in Date got <week day: {value[4]}, not corresponding with other data")
 
     @property
     def strfdate(self):
@@ -972,7 +1006,7 @@ class __Time(ABC):
             contents[0+self.__contents_offset] = value
             self.set(contents)
         else:
-            raise ValueError(F'Hour out of range, got {value}, expected 0..23, 255')
+            raise OutOfRange(F"in Hour: got {value}, expected 0..23, 255")
 
     def set_minute(self, value: int):
         """ set minute """
@@ -981,7 +1015,16 @@ class __Time(ABC):
             contents[1+self.__contents_offset] = value
             self.set(contents)
         else:
-            raise ValueError(F'Minute out of range, got {value}, expected 0..59, 255')
+            raise OutOfRange(F"in Minute: got {value}, expected 0..59, 255")
+
+    def set_second(self, value: int):
+        """ set minute """
+        if (0 <= value <= 59) or value == 0xff:
+            contents = bytearray(self.contents)
+            contents[2+self.__contents_offset] = value
+            self.set(contents)
+        else:
+            raise OutOfRange(F"in second: got {value}, expected 0..59, 255")
 
     def set_hundredths(self, value: int):
         """ set hun """
@@ -990,15 +1033,18 @@ class __Time(ABC):
             contents[3+self.__contents_offset] = value
             self.set(contents)
         else:
-            raise ValueError(F'Minute out of range, got {value}, expected 0..99, 255')
+            raise OutOfRange(F"in Hundredths: got {value}, expected 0..99, 255")
 
     @property
     def hour(self) -> int | None:
         """ return hour if specific or None """
         match self.contents[0+self.__contents_offset]:
-            case 0xff:                    return None
-            case _ as hour if hour <= 23: return hour
-            case _ as wrong_value:        raise ValueError(F"got hour={wrong_value} from {self.TAG} contents, must be: 0..23, ff")
+            case 0xff:
+                return None
+            case _ as hour if hour <= 23:
+                return hour
+            case _ as wrong_value:
+                raise OutOfRange(F"got hour={wrong_value} from {self.TAG} contents, must be: 0..23, ff")
 
     @property
     def minute(self) -> int | None:
@@ -1006,7 +1052,7 @@ class __Time(ABC):
         match self.contents[1+self.__contents_offset]:
             case 0xff:                        return None
             case _ as minute if minute <= 59: return minute
-            case _ as wrong_value:            raise ValueError(F"got minute={wrong_value} from {self.TAG} contents, must be: 0..59, ff")
+            case _ as wrong_value:            raise OutOfRange(F"got minute={wrong_value} from {self.TAG} contents, must be: 0..59, ff")
 
     @property
     def second(self) -> int | None:
@@ -1014,7 +1060,7 @@ class __Time(ABC):
         match self.contents[2+self.__contents_offset]:
             case 0xff:                        return None
             case _ as second if second <= 59: return second
-            case _ as wrong_value:            raise ValueError(F"got second={wrong_value} from {self.TAG} contents, must be: 0..59, ff")
+            case _ as wrong_value:            raise OutOfRange(F"got second={wrong_value} from {self.TAG} contents, must be: 0..59, ff")
 
     @property
     def hundredths(self) -> int | None:
@@ -1022,7 +1068,7 @@ class __Time(ABC):
         match self.contents[3+self.__contents_offset]:
             case 0xff:                                return None
             case _ as hundredths if hundredths <= 99: return hundredths
-            case _ as wrong_value:                    raise ValueError(F"got hundredths={wrong_value} from {self.TAG} contents, must be: 0..99, ff")
+            case _ as wrong_value:                    raise OutOfRange(F"got hundredths={wrong_value} from {self.TAG} contents, must be: 0..99, ff")
 
     def check_time(self):
         datetime.time(*tuple(self.contents[0+self.__contents_offset: 4+self.__contents_offset].replace(b'\xff', b'\x00')))
@@ -1692,13 +1738,19 @@ class OctetString(_String, SimpleDataType):
         """ decode to build in bytes type """
         return bytes(self)
 
-    def to_str(self, encoding: str = 'cp1251') -> str:
-        """ decode to cp1251 by default, replace to '?' if unsupported """
+    def to_str(self, encoding: str = "utf-8") -> str:
+        """ decode to utf-8 by default, replace to '?' if unsupported """
         temp = list()
         for i in self.contents:
             temp.append(i if i > 32 else 63)
         return bytes(temp).decode(encoding)
 
+    def pretty_str(self) -> str:
+        """decode to utf-8 or hex labal"""
+        try:
+            return self.contents.decode("utf-8")
+        except Exception as e:
+            return F"{self}(HEX)"
 
 class VisibleString(_String, SimpleDataType):
     """ An ordered sequence of octets (8 bit bytes) """
@@ -2021,35 +2073,7 @@ class Float64(Float, SimpleDataType):
 
 
 class DateTime(__DateTime, __Date, __Time, SimpleDataType):
-    # http://localhost:8081/Blue_Book_Ed14-2020.pdf
-    """ DLMS BlueBook(IEC 62056-6-2) 13.0 4.1.5 Common data types
-    OCTET STRING (SIZE(12))  { year highbyte, year lowbyte, month, day of month, day of week, hour,
-        minute, second, hundredths of second, deviation highbyte, deviation lowbyte, clock status}
-    The elements of date and time are encoded as defined above. Some may be set to “not specified” as defined above.
-    In addition:
-        deviation: interpreted as long range -720…+720 in minutes of local time to UTC 0x8000 = not specified
-            Deviation highbyte and deviation lowbyte represent the 2 bytes of the long.
-        Clock_status interpreted as unsigned. The bits are defined as follows:
-            bit 0 (LSB): invalid value,
-            bit 1: doubtful value,
-            bit 2: different clock base,
-            bit 3: invalid clock status,
-            bit 4: reserved,
-            bit 5: reserved,
-            bit 6: reserved,
-            bit 7 (MSB): daylight saving active
-            0xFF = not specified
-            Time could not be recovered after an incident. Detailed conditions are manufacturer specific (for example
-                after the power to the clock has been interrupted). For a valid status, bit 0 shall not be set if bit 1
-                is set.
-            b Time could be recovered after an incident but the value cannot be guaranteed. Detailed conditions are
-                manufacturer specific. For a valid status, bit 1 shall not be set if bit 0 is set.
-            c Bit is set if the basic timing information for the clock at the actual moment is taken from a timing
-                source different from the source specified in clock_base.
-            d This bit indicates that at least one bit of the clock status is invalid. Some bits may be correct.
-                The exact meaning shall be explained in the manufacturer’s documentation.
-            e Flag set to true: the transmitted time contains the daylight saving deviation (summer time).
-                Flag set to false: the transmitted time does not contain daylight saving deviation (normal time)."""
+    """ DLMS BlueBook(IEC 62056-6-2) 13.0 4.1.5 Common data types"""
     TAG = TAG(b'\x19')
     _separators = ('.', '.', '-', ' ', ':', ':', '.', ' ')
 
@@ -2115,7 +2139,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
     def is_default_value(self) -> bool:
         return True if self.contents == b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\x80\x00\xff' else False
 
-    def decode(self) -> datetime.datetime:
+    def to_datetime(self) -> datetime.datetime:
         year_highbyte, year_lowbyte, month, day_of_month, _, hour, minute, second, hundredths, deviation_highbyte, deviation_lowbyte, _ = self.contents
         year = year_highbyte*256+year_lowbyte
         deviation = deviation_highbyte*256 + deviation_lowbyte
@@ -2128,49 +2152,117 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
                                  microsecond=hundredths*10000 if hundredths != 0xff else 0,
                                  tzinfo=datetime.timezone.utc if deviation == 0x8000 else datetime.timezone(datetime.timedelta(minutes=deviation)))
 
+    @deprecated("use to_datetime")
+    def decode(self) -> datetime.datetime:
+        return self.to_datetime()
+
+    @property
+    def deviation(self) -> int | None:
+        """:return in minute if posible"""
+        deviation = self.contents[9]*256 + self.contents[10]
+        return deviation if deviation != 0x8000 else None
+
     @property
     def time_zone(self) -> datetime.timezone | None:
-        """ Return timezone from deviation """
-        deviation = self.contents[9]*256 + self.contents[10]
-        if deviation == 0x8000:
+        """:return timezone from deviation """
+        if self.deviation is None:
             return None
-        elif -720 <= deviation >= 720:
-            return datetime.timezone(datetime.timedelta(minutes=deviation))
         else:
-            raise ValueError(F'Deviation must be from -720..720 got {deviation}')
+            return datetime.timezone(datetime.timedelta(minutes=self.deviation))
 
     def get_left_nearest_date(self, point: datetime.datetime) -> datetime.datetime | None:
         """ search and return date(datetime format) in left from point """
-        l_point: datetime.datetime = self.decode()
+        res: datetime.datetime = self.to_datetime()
         """ time in left from point """
         months = range(point.month, 0, -1) if self.month is None else (self.month,)
         """ months sequence from 12 to 1 with start from current month or self month """
         days = range(point.day, 0, -1) if self.day is None else (self.day,)
         """ days sequence from 31 to 1 with start from current day or self day """
         for year in range(point.year, datetime.MINYEAR, -1) if self.year is None else (self.year, ):
-            l_point = l_point.replace(year=year)
+            res = res.replace(year=year)
             for month in months:
-                l_point = l_point.replace(month=month)
+                res = res.replace(month=month)
                 for day in days:
-                    l_point = l_point.replace(day=day)
-                    if l_point > point:
+                    res = res.replace(day=day)
+                    if res > point:
                         continue
-                    elif self.weekday is not None and self.weekday != (l_point.weekday() + 1):
+                    elif (
+                        self.weekday is not None
+                        and self.weekday != (res.weekday() + 1)
+                    ):
                         continue
                     else:
-                        return l_point
-                days = range(31, 0, -1) if self.day is None else point.day,
-            months = range(12, 0, -1) if self.month is None else point.month,
+                        return res
+                days = range(31, 0, -1) if self.day is None else self.day,
+            months = range(12, 0, -1) if self.month is None else self.month,
+        return None
+
+    def get_right_nearest_date(self, point: datetime.datetime) -> datetime.datetime | None:
+        """ search and return date(datetime format) in rigth from point """
+        res: datetime.datetime = self.to_datetime()
+        """ time in left from point """
+        months = range(point.month, 12) if self.month is None else (self.month,)
+        """ months sequence from 12 to 1 with start from current month or self month """
+        days = range(point.day, 32) if self.day is None else (self.day,)
+        """ days sequence from 31 to 1 with start from current day or self day """
+        for year in range(point.year, datetime.MAXYEAR) if self.year is None else (self.year, ):
+            res = res.replace(year=year)
+            for month in months:
+                res = res.replace(month=month)
+                for day in days:
+                    res = res.replace(day=day)
+                    if res < point:
+                        continue
+                    elif (
+                        self.weekday is not None
+                        and self.weekday != (res.weekday() + 1)
+                    ):
+                        continue
+                    else:
+                        return res
+                days = range(0, 32) if self.day is None else self.day,
+            months = range(0, 12) if self.month is None else self.month,
+        return None
+
+    def get_right_nearest_datetime(self, point: datetime.datetime) -> datetime.datetime | None:
+        """ search and return datetime in right from point """
+        res: datetime.datetime = self.get_right_nearest_date(point)
+        """ time in left from point """
+        if res is None:
+            return None
+        is_this_day: bool = res.date() == point.date()
+        """ flag of points equaling """
+        for hour in range(point.hour if is_this_day else 0, 24) if self.hour is None else (self.hour,):
+            res = res.replace(hour=hour)
+            for minute in range(point.minute if is_this_day and res.hour == point.hour else 0, 60) if self.minute is None else (self.minute,):
+                res = res.replace(minute=minute)
+                for second in range(point.second if (
+                        is_this_day
+                        and res.hour == point.hour
+                        and res.minute == point.minute
+                ) else 0, 60) if self.second is None else (self.second,):
+                    res = res.replace(second=second)
+                    for microsecond in range(point.microsecond if (
+                            is_this_day
+                            and res.hour == point.hour
+                            and res.minute == point.minute
+                            and res.second == point.second
+                    ) else 0, 990000) if self.hundredths is None else (self.hundredths * 10000,):
+                        res = res.replace(microsecond=microsecond)
+                        if res < point:
+                            continue
+                        else:
+                            return res
         return None
 
     def get_left_nearest_datetime(self, point: datetime.datetime) -> datetime.datetime | None:
         """ search and return datetime in left from point """
         l_point: datetime.datetime = self.get_left_nearest_date(point)
         """ time in left from point """
-        is_this_day: bool = l_point.date() == point.date()
-        """ flag of points equaling """
         if l_point is None:
             return None
+        is_this_day: bool = l_point.date() == point.date()
+        """ flag of points equaling """
         for hour in range(point.hour if is_this_day else 23, -1, -1) if self.hour is None else (self.hour,):
             l_point = l_point.replace(hour=hour)
             for minute in range(point.minute if is_this_day and l_point.hour == point.hour else 59, -1, -1) if self.minute is None else (self.minute,):
@@ -2300,7 +2392,30 @@ class Time(__DateTime, __Time, SimpleDataType):
         return None
 
 
-__types: dict[bytes, Type[CommonDataType]] = {bytes(dlms_type.TAG): dlms_type for dlms_type in chain(SimpleDataType.__subclasses__(), ComplexDataType.__subclasses__())}
+__types: dict[bytes, Type[CommonDataType]] = {
+    b'\x00': NullData,
+    b'\x01': Array,
+    b'\x02': Structure,
+    b'\x03': Boolean,
+    b'\x04': BitString,
+    b'\x05': DoubleLong,
+    b'\x06': DoubleLongUnsigned,
+    b'\x09': OctetString,
+    b'\x0C': Utf8String,
+    b'\x0D': Bcd,
+    b'\x0F': Integer,
+    b'\x10': Long,
+    b'\x11': Unsigned,
+    b'\x12': LongUnsigned,
+    b'\x13': Long64,
+    b'\x14': Long64Unsigned,
+    b'\x16': Enum,
+    b'\x17': Float32,
+    b'\x18': Float64,
+    b'\x19': DateTime,
+    b'\x20': Date,
+    b'\x21': Time
+}
 """ Common data type dictionary """
 
 

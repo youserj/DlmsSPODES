@@ -37,9 +37,9 @@ class TestType(unittest.TestCase):
         print(col, lim)
 
     def test_ActivityCalendar(self):
-        obj: collection.ActivityCalendar = collection.ActivityCalendar("0.0.13.0.0.255")
+        obj: collection.ActivityCalendar = collection.ActivityCalendar("00 00 0d 00 00 ff")
         obj.day_profile_table_active.set(bytes.fromhex("01 01 02 02 11 00 01 01 02 03 09 04 00 00 ff ff 09 06 00 00 0a 00 64 ff 12 00 01"))
-        obj.day_profile_table_active.append((1, [("00:00", "1.2.3.4.5.6", 1)]))
+        obj.day_profile_table_active.append((1, [("00:00", "00 00 00 00 00 00", 1)]))
         obj.week_profile_table_active.set(bytes.fromhex("01 01 02 08 09 07 44 65 66 61 75 6c 74 11 01 11 00 11 00 11 00 11 00 11 00 11 00"))
         obj.week_profile_table_active.append()
         # obj.week_profile_table_active.append((bytearray(b'\x00'), 0, 0, 0, 0, 0, 0, 0))
@@ -49,9 +49,10 @@ class TestType(unittest.TestCase):
 
     def test_d(self):
         d_p = activity_calendar.DaySchedule([
-            ("00:00", "0.0.10.0.100.255", 1),
-            ("02:00", "0.0.10.0.100.255", 2),
-            ("01:00", "0.0.10.0.100.255", 3),
+            ("00:00", "00 00 10 00 64 ff", 1),
+            ("02:00", "00 00 10 00 64 ff", 2),
+            ("01:00", "00 00 10 00 64 ff", 3),
         ])
         sort = sorted(d_p)
+        new = activity_calendar.DaySchedule(sort)
         print(d_p, sort)

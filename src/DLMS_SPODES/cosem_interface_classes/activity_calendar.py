@@ -117,6 +117,15 @@ class DayProfileTable(cdt.Array):
     def get_day_ids(self) -> tuple[cdt.Unsigned, ...]:
         return tuple((day_profile.day_id for day_profile in self.values))
 
+    def normalize(self) -> bool:
+        d_p: DayProfile
+        res = False
+        for d_p in self:
+            if (new := DaySchedule(sorted(d_p.day_schedule))) != d_p.day_schedule:
+                res = True
+                d_p.day_schedule.__dict__["values"] = new.values
+        return res
+
 
 class ActivityCalendar(ic.COSEMInterfaceClasses):
     """DLMS UA 1000-1 Ed. 14 4.5.5 Activity calendar"""

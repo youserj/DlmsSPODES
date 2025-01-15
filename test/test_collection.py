@@ -45,6 +45,7 @@ class TestType(unittest.TestCase):
     @lru_cache()
     def create_collection(self) -> collection.Collection:
         col = collection.Collection()
+        col.spec_map = "SPODES_3"
         reg = col.add(
             class_id=overview.ClassID.REGISTER,
             version=overview.Version.V0,
@@ -74,6 +75,12 @@ class TestType(unittest.TestCase):
             logical_name=cst.LogicalName("00 00 0a 00 64 ff")
         )
         script_obj.set_attr(2, [(1, [(2, 3, "01 00 01 07 00 FF", 2, None)])])
+        alarm1_obj = col.add(
+            class_id=overview.ClassID.DATA,
+            version=overview.Version.V0,
+            logical_name=cst.LogicalName("00 00 61 62 00 FF")
+        )
+        alarm1_obj.set_attr(2, 11)
         return col
 
     def test_ParVal(self):
@@ -650,3 +657,13 @@ class TestType(unittest.TestCase):
         print(col)
         obj = col.get_object("0.0.13.0.0.255")
         # col.get_report(obj, b'\x09', )
+
+    def test_Alarm1(self):
+        col = self.create_collection()
+        obj = col.get_object("0.0.97.98.0.255")
+        self.assertTrue(obj.value.get_report().msg.startswith("(11)"))
+        self.assertEqual(tuple(obj.value), (1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        self.assertEqual(obj.value[1], 1)
+        obj.value[1] = 0
+        obj.value[30] = 1
+        print(obj.value)

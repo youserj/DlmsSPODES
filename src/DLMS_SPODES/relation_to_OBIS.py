@@ -329,6 +329,7 @@ def get_name(logical_name: cst.LogicalName) -> str:
         case  0, 0, 97, 98, 1:  return rn.RU_ALARM_REGISTER_2
         case  0, 0, 97, 98, 10:  return rn.RU_ALARM_FILTER_1
         case  0, 0, 97, 98, 11:  return rn.RU_ALARM_FILTER_2
+        case  0, 0, 97, 98, 20:  return rn.ALARM_DESCRIPTOR
         case  0, b, 99, 1, e:   return F"{rn.LOAD_PARAMETERS_PROFILE}{handle_B(b)}{handle_E(e)}"
         case  0, b, 99, 13, e:  return F"{rn.GSM_DIAGNOSTIC_PROFILE}{handle_B(b)}{handle_E(e)}"
         case  0, b, 99, 98, 0:  return F"{rn.RU_VOLTAGE_LOG}{handle_B(b)}"

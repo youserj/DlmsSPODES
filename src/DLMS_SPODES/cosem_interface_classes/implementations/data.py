@@ -272,12 +272,23 @@ class LoadLockerValue(cdt.IntegerEnum, cdt.Unsigned):
                     msg=get_message(F"({val})"),
                     log=cdt.Log(logging.ERROR, "unknown state"))
 
+
 class SPODES3LoadLocker(DataStatic):
     """СТО 34.01-5.1-006-2023 E7. Блокиратор реле нагрузки"""
     A_ELEMENTS = DataNotSpecific.get_attr_element(2).get_change(data_type=LoadLockerValue),
 
+
 class SPODES3PowerQuality1EventValues(cdt.IntegerFlag, cdt.LongUnsigned):
     pass
+
+
+class SPODES3Alarm1Values(cdt.IntegerFlag, cdt.DoubleLongUnsigned):
+    ...
+
+
+class SPODES3Alarm1(DataStatic):
+    """СТО_34.01-5.1-006-2019v3 9.8 Поддержка инициативного выхода"""
+    A_ELEMENTS = DataStatic.get_attr_element(2).get_change(data_type=SPODES3Alarm1Values),
 
 
 class SPODES3PowerQuality1Event(DataNotSpecific):
@@ -297,6 +308,7 @@ class KPZ1SPODES3VoltageEvent(DataStatic):
 
 class KPZ1CurrentEventValues(cdt.IntegerEnum, cdt.DoubleLongUnsigned):
     NAMES = SPODES3CurrentEventValues.NAMES
+
 
 class KPZ1SPODES3CurrentEvent(DataStatic):
     """СТО_34.01-5.1-006-2019v3 Д.3 События, связанные с током"""

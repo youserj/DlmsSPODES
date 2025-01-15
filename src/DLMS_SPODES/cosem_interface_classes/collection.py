@@ -3,7 +3,6 @@ principles (see Clause 4 EN 62056-62:2007), the identification of real data item
 usage of those definitions in the COSEM environment. All codes, which are not explicitly listed, but outside the manufacturer specific range are
 reserved for future use."""
 from struct import pack
-from typing_extensions import deprecated
 import datetime
 from dataclasses import dataclass
 from itertools import count, chain
@@ -11,6 +10,7 @@ from functools import reduce, cached_property, lru_cache
 from typing import TypeAlias, Iterator, Type, Self, Callable, Literal, Iterable
 import logging
 from semver import Version as SemVer
+from StructResult import Result
 from ..types import common_data_types as cdt, cosem_service_types as cst, useful_types as ut
 from ..types.implementations import structs, enums, octet_string
 from . import cosem_interface_class as ic
@@ -107,6 +107,12 @@ SortMode: TypeAlias = Literal["l", "n", "c", "cl", "cn"]
 class ClassMap(dict):
     def __hash__(self):
         return hash(tuple(it.hash_ for it in self.values()))
+
+    def renew(self, ver: int, cls_: Type[InterfaceClass]) -> Self:
+        """return with one change"""
+        ret = self.__class__(self)
+        ret[ver] = cls_
+        return ret
 
 
 DataMap = ClassMap({
@@ -484,7 +490,7 @@ func_maps["DLMS_6"] = get_func_map(__func_map_for_create)
 
 # SPODES3 Update
 __func_map_for_create.update({
-    (0, 21, 0): ClassMap({1: impl.profile_generic.SPODES3DisplayReadout}),
+    (0, 21, 0): ProfileGenericMap.renew(1, impl.profile_generic.SPODES3DisplayReadout),
     (0, 96, 1, (0, 2, 4, 5, 8, 9, 10)): ClassMap({0: impl.data.SPODES3IDNotSpecific}),
     (0, 96, 1, 6): ClassMap({0: impl.data.SPODES3SPODESVersion}),
     (0, 96, 2, (1, 2, 3, 5, 6, 7, 11, 12)): ClassMap({0: impl.data.AnyDateTime}),
@@ -509,17 +515,18 @@ __func_map_for_create.update({
     (0, 0, 96, 51, 5): ClassMap({0: impl.data.SealStatus}),
     (0, 0, 96, 51, (6, 7)): UnsignedDataMap,
     (0, 0, 96, 51, (8, 9)): ClassMap({0: impl.data.OctetStringDateTime}),
+    (0, 0, 97, 98, (0, 10, 20)): ClassMap({0: impl.data.SPODES3Alarm1}),
     # electricity
     (1, 0, 8, (4, 5)): ClassMap({0: impl.data.SPODES3MeasurementPeriod}),
-    (1, 98, 1): ClassMap({1: impl.profile_generic.SPODES3MonthProfile}),
-    (1, 98, 2): ClassMap({1: impl.profile_generic.SPODES3DailyProfile}),
-    (1, 99, (1, 2)): ClassMap({1: impl.profile_generic.SPODES3LoadProfile}),
+    (1, 98, 1): ProfileGenericMap.renew(1, impl.profile_generic.SPODES3MonthProfile),
+    (1, 98, 2): ProfileGenericMap.renew(1, impl.profile_generic.SPODES3DailyProfile),
+    (1, 99, (1, 2)): ProfileGenericMap.renew(1, impl.profile_generic.SPODES3LoadProfile),
     (1, 0, 131, 35, 0): RegisterMap,
     (1, 0, 133, 35, 0): RegisterMap,
     (1, 0, 147, 133, 0): RegisterMap,
     (1, 0, 148, 136, 0): RegisterMap,
-    (1, 94, 7, 0): ClassMap({1: impl.profile_generic.SPODES3CurrentProfile}),
-    (1, 94, 7, (1, 2, 3, 4, 5, 6)): ClassMap({1: impl.profile_generic.SPODES3ScalesProfile}),  # Todo: RU. Scaler-profile With 1 entry and more
+    (1, 94, 7, 0): ProfileGenericMap.renew(1, impl.profile_generic.SPODES3CurrentProfile),
+    (1, 94, 7, (1, 2, 3, 4, 5, 6)): ProfileGenericMap.renew(1, impl.profile_generic.SPODES3ScalesProfile),  # Todo: RU. Scaler-profile With 1 entry and more
     # KPZ
     (128, 0, tuple(range(20)), 0, 0): RegisterMap
 })
@@ -555,20 +562,20 @@ def get_type(class_id: ut.CosemClassId,
              func_map: FUNC_MAP) -> Type[InterfaceClass]:
     """use DLMS UA 1000-1 Ed. 14 Table 54"""
     if (128 <= ln.b <= 199) or (128 <= ln.c <= 199) or ln.c == 240 or (128 <= ln.d <= 254) or (128 <= ln.e <= 254) or (128 <= ln.f <= 254):
-        # try search in BCDE group for manufacture object before in CDE
-        c_m = func_map.get((ln.contents[:5]), common_interface_class_map)
+        # try search in ABCDE group for manufacture object before in CDE
+        c_m = func_map.get(ln.contents[:5], common_interface_class_map)
     else:
-        # try search in CDE group
-        c_m = func_map.get((ln.contents[:1]+ln.contents[2:5]), None)
+        # try search in ABCDE group
+        c_m = func_map.get(ln.contents[:5], None)
         if not c_m:
-            # try search in CD group
-            c_m = func_map.get((ln.contents[:1]+ln.contents[2:4]), None)
+            # try search in A-CDE group
+            c_m = func_map.get(ln.contents[:1]+ln.contents[2:5], None)
             if not c_m:
-                # try search in BCDE group
-                c_m = func_map.get((ln.contents[:5]), None)
+                # try search in A-CD group
+                c_m = func_map.get(ln.contents[:1]+ln.contents[2:4], None)
                 if not c_m:
-                    # try search in C group
-                    c_m = func_map.get((ln.contents[:1]+ln.contents[3:4]), common_interface_class_map)
+                    # try search in A-C group
+                    c_m = func_map.get(ln.contents[:1]+ln.contents[3:4], common_interface_class_map)
     return get_interface_class(class_map=c_m,
                                c_id=class_id,
                                ver=version)
@@ -1024,15 +1031,14 @@ class Collection:
             ret.append(self.__get_object(olt.logical_name.contents))
         return ret
 
-    def sap2objects(self, value: enums.ClientSAP) -> tuple[list[ic.COSEMInterfaceClasses], list[Exception]]:
-        ret = list()
-        err = list()
+    def sap2objects(self, value: enums.ClientSAP) -> Result[list[ic.COSEMInterfaceClasses]]:
+        res = Result(list())
         for ln in self.sap2association(value).get_lns():
             try:
-                ret.append(self.__get_object(ln.contents))
+                res.value.append(self.__get_object(ln.contents))
             except exc.NoObject as e:
-                err.append(e)
-        return ret, err
+                res.append_err(e)
+        return res
 
     def get_attr(self, value: ut.CosemAttributeDescriptor) -> cdt.CommonDataTypes:
         """attribute value from descriptor"""
@@ -1060,8 +1066,8 @@ class Collection:
         ret: UsedAttributes = dict()
         for ass in self.get_objects_by_class_id(ClassID.ASSOCIATION_LN):
             if (
-            ass.logical_name.e == 0
-            or ass.object_list is None
+                ass.logical_name.e == 0
+                or ass.object_list is None
             ):
                 continue
             else:

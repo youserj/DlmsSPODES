@@ -2,7 +2,7 @@ import datetime
 import unittest
 import inspect
 from itertools import count
-from src.DLMS_SPODES.types.common_data_types import encode_length
+from src.DLMS_SPODES.types.common_data_types import encode_length, ValidationError, OutOfRange
 from src.DLMS_SPODES.cosem_interface_classes import ic, collection
 from src.DLMS_SPODES.types import cdt, cst, ut, implementations as impl, choices
 from src.DLMS_SPODES import relation_to_OBIS, enums
@@ -43,12 +43,24 @@ class TestType(unittest.TestCase):
         print(a)
 
     def test_Time(self):
-        time = cdt.Time("10:01")
-        print(time.to_second())
+        t = cdt.Time("10:01")
+        self.assertEqual(t.to_second(), 14460)
+        self.assertRaises(OutOfRange, t.set_second, 60)
+
+    def test_Date(self):
+        data = cdt.Date("01.01.2000")
+        self.assertRaises(ValidationError, data.set_weekday, 1)
+        self.assertRaises(OutOfRange, data.set_weekday, 8)
 
     def test_DateTime(self):
-        pattern = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
-        self.assertEqual(cdt.DateTime(pattern).decode(), pattern, 'init from datetime and decoding')
+        data: cdt.DateTime
+        pattern = datetime.datetime(2021, 1, 1, 10, tzinfo=datetime.timezone.utc)
+        self.assertEqual((new := cdt.DateTime(pattern)).to_datetime(), pattern, 'init from datetime and decoding')
+        data = cdt.DateTime("01.__.2021 10:00 700")
+        tz = data.time_zone
+        l = data.get_left_nearest_datetime(datetime.datetime(2021, 5, 10, tzinfo=datetime.timezone.utc))
+        r = data.get_right_nearest_datetime(datetime.datetime(2021, 5, 10, tzinfo=datetime.timezone.utc))
+        print(l, r)
 
     def test_UnitScaler(self):
         value = cdt.ScalUnitType()
@@ -259,3 +271,7 @@ class TestType(unittest.TestCase):
         value = cdt.Unsigned(1)
         value += 1
         self.assertEqual(value, cdt.Unsigned(2))
+
+    def test_OctetString(self):
+        data = cdt.OctetString("00 01 02")
+        self.assertEqual(data.pretty_str(), "00 01 02")

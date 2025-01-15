@@ -125,6 +125,7 @@ RU_ALARM_REGISTER_1 = "RU. Alarm register. Initiative output"
 RU_ALARM_FILTER_1 = "RU. Alarm filter. Initiative exit"
 RU_ALARM_REGISTER_2 = "RU. Alarm register. Load relay"
 RU_ALARM_FILTER_2 = "RU. Alarm filter. Load relay"
+ALARM_DESCRIPTOR = "SPODES3. Alarm descriptor. Initiative output"
 # СТО 34.01-5.1-006-2021 Д.11 Журналы событий и захватываемые параметры
 RU_VOLTAGE_LOG = "RU. Voltage log"
 RU_CURRENT_LOG = "RU. Current log"
