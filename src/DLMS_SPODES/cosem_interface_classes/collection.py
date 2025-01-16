@@ -1121,10 +1121,6 @@ class Collection:
         else:
             return False
 
-    @property
-    def current_time(self) -> datetime.datetime | None:
-        return self.clock.get_current_time()
-
     def change_association_version(self, version: cdt.Unsigned):
         """ change Association version with clear attributes """
         logger.warning(F'Attention. ALL Association attributes will to default')

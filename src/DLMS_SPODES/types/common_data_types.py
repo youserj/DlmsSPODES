@@ -231,10 +231,6 @@ class CommonDataType(ABC):
         new.set(value)
         return new
 
-    @abstractmethod
-    def decode(self) -> str | int | list | bytes | None | float:
-        """ to build in python type """
-
     def register_cb_post_set(self, func: Callable):
         """ register callback function for calling after <set>"""
         self.__dict__['cb_post_set'] = func
@@ -817,77 +813,68 @@ class __Date(ABC):
     TAG: TAG
 
     @property
-    def year(self) -> int | None:
-        """ return year if specific or None """
-        match self.contents[0] * 256 + self.contents[1]:
-            case 0xffff:    return None
-            case _ as year: return year
-
-    # TODO: add 0xfe, 0xfd code
-    @property
-    def month(self) -> int | None:
-        """ return month if specific or None """
-        match self.contents[2]:
-            case 0xff:                           return None
-            case _ as month if 1 <= month <= 12: return month
-            case _ as wrong_value:               raise ValueError(F'got month={wrong_value} from {self.TAG} contents, must be: 1..12, fe, fd, ff')
-
-    # TODO: add 0xfe, 0xfd code
-    @property
-    def day(self) -> int | None:
-        """ return day if specific or None """
-        match self.contents[3]:
-            case 0xff:                       return None
-            case _ as day if 1 <= day <= 31: return day
-            case _ as wrong_value:           raise ValueError(F'got day={wrong_value} from {self.TAG} contents, must be: 1..31, fe, fd, ff')
+    def year(self) -> int:
+        return unpack(">H", self.contents[:2])[0]
 
     @property
-    def weekday(self) -> int | None:
-        """ return weekday if specific or None """
-        match self.contents[4]:
-            case 0xff:                              return None
-            case _ as weekday if 1 <= weekday <= 7: return weekday
-            case _ as wrong_value:                  raise ValueError(F'got weekday={wrong_value} from {self.TAG} contents, must be: 1..7, ff')
+    def month(self) -> int:
+        return self.contents[2]
+
+    @property
+    def day(self) -> int:
+        return self.contents[3]
+
+    @property
+    def weekday(self) -> int:
+        return self.contents[4]
 
     def set_year(self, value: int):
         """ set day """
-        if (9999 >= value > 1) or value == 0xffff:
+        if (
+            9999 >= value > 1
+            or value == 0xffff
+        ):
             contents = bytearray(self.contents)
             contents[:2] = value.to_bytes(2, 'big')
-            self.set(contents)
+            self.__dict__["contents"] = contents
         else:
             raise OutOfRange(F"in year: got {value}, expected 1..9999, 65535")
 
     def set_month(self, value: int):
         """ set month """
-        if (12 >= value >= 1) or value == 0xff:
+        if (
+            12 >= value >= 1
+            or value in (0xfd, 0xfe, 0xff)
+        ):
             contents = bytearray(self.contents)
             contents[2] = value
-            self.set(contents)
+            self.__dict__["contents"] = contents
         else:
-            raise OutOfRange(F"in Month: got {value}, expected 1..12, 255")
+            raise OutOfRange(F"in Month: got {value}, expected 1..12, 253, 254, 255")
 
     def set_day(self, value: int):
         """ set day """
-        if (31 >= value >= 1) or value == 0xff:
+        if (
+            31 >= value >= 1
+            or value in (0xfd, 0xfe, 0xff)
+        ):
             contents = bytearray(self.contents)
             contents[3] = value
-            self.set(contents)
+            self.__dict__["contents"] = contents
         else:
-            raise OutOfRange(F"in Day: got {value}, expected 1..31, 255")
+            raise OutOfRange(F"in Day: got {value}, expected 1..31, 253, 254, 255")
 
     def set_weekday(self, value: int):
         """ set weekday """
-        if (7 >= value >= 1) or value == 0xff:
+        if (
+            7 >= value >= 1
+            or value == 0xff
+        ):
             contents = bytearray(self.contents)
             contents[4] = value
-            self.set(contents)
+            self.__dict__["contents"] = contents
         else:
             raise OutOfRange(F"got <week day>: {value}, excpected 1..7 or 255")
-
-    @abstractmethod
-    def decode(self) -> datetime.datetime:
-        """ return python time. Used 00 instead 'NOT SPECIFIED'  """
 
     @staticmethod
     def check_date(value: bytes):
@@ -907,22 +894,22 @@ class __Date(ABC):
         """ get date in format d.m.Y-A or d.m.Y or d.m """
         match self.contents[2]:
             case 0xff:  month = '__'
-            case 0xfe:  month = 'begin'
-            case 0xfd:  month = 'end'
+            case 0xfe:  month = 'be'  # begin
+            case 0xfd:  month = 'en'  # end
             case value: month = str(value).zfill(2)
         match self.contents[3]:
             case 0xff:     month_day = '__'
-            case 0xfe:     month_day = 'last'
-            case 0xfd:     month_day = 'penult'
+            case 0xfe:     month_day = 'la'  # last
+            case 0xfd:     month_day = 'pe'  # penult
             case value:    month_day = str(value).zfill(2)
         match self.contents[4]:
-            case 1:    weekday = '-пон'
-            case 2:    weekday = '-вто'
-            case 3:    weekday = '-сре'
-            case 4:    weekday = '-чет'
-            case 5:    weekday = '-пят'
-            case 6:    weekday = '-суб'
-            case 7:    weekday = '-вос'
+            case 1:    weekday = '-пн'
+            case 2:    weekday = '-вт'
+            case 3:    weekday = '-ср'
+            case 4:    weekday = '-чт'
+            case 5:    weekday = '-пт'
+            case 6:    weekday = '-сб'
+            case 7:    weekday = '-вс'
             case 0xff: weekday = ''
             case value: raise ValueError(F'Got weekday={value}, expected 1..7, ff')
         match unpack('>h', self.contents[:2])[0]:
@@ -1036,39 +1023,20 @@ class __Time(ABC):
             raise OutOfRange(F"in Hundredths: got {value}, expected 0..99, 255")
 
     @property
-    def hour(self) -> int | None:
-        """ return hour if specific or None """
-        match self.contents[0+self.__contents_offset]:
-            case 0xff:
-                return None
-            case _ as hour if hour <= 23:
-                return hour
-            case _ as wrong_value:
-                raise OutOfRange(F"got hour={wrong_value} from {self.TAG} contents, must be: 0..23, ff")
+    def hour(self) -> int:
+        return self.contents[0 + self.__contents_offset]
 
     @property
-    def minute(self) -> int | None:
-        """ return minutes if specific or None """
-        match self.contents[1+self.__contents_offset]:
-            case 0xff:                        return None
-            case _ as minute if minute <= 59: return minute
-            case _ as wrong_value:            raise OutOfRange(F"got minute={wrong_value} from {self.TAG} contents, must be: 0..59, ff")
+    def minute(self) -> int:
+        return self.contents[1 + self.__contents_offset]
 
     @property
-    def second(self) -> int | None:
-        """ return second if specific or None """
-        match self.contents[2+self.__contents_offset]:
-            case 0xff:                        return None
-            case _ as second if second <= 59: return second
-            case _ as wrong_value:            raise OutOfRange(F"got second={wrong_value} from {self.TAG} contents, must be: 0..59, ff")
+    def second(self) -> int:
+        return self.contents[2 + self.__contents_offset]
 
     @property
-    def hundredths(self) -> int | None:
-        """ return hundredths if specific or None """
-        match self.contents[3+self.__contents_offset]:
-            case 0xff:                                return None
-            case _ as hundredths if hundredths <= 99: return hundredths
-            case _ as wrong_value:                    raise OutOfRange(F"got hundredths={wrong_value} from {self.TAG} contents, must be: 0..99, ff")
+    def hundredths(self) -> int:
+        return self.contents[3 + self.__contents_offset]
 
     def check_time(self):
         datetime.time(*tuple(self.contents[0+self.__contents_offset: 4+self.__contents_offset].replace(b'\xff', b'\x00')))
@@ -1133,13 +1101,13 @@ class __Time(ABC):
 
     def to_second(self) -> float | int:
         ret = 0
-        if (hour := self.hour) is not None:
+        if (hour := self.hour) != 0xff:
             ret += hour*1440
-        if (minute := self.minute) is not None:
+        if (minute := self.minute) != 0xff:
             ret += minute*60
-        if (second := self.second) is not None:
+        if (second := self.second) != 0xff:
             ret += second
-        if (h := self.hundredths) is not None:
+        if (h := self.hundredths) != 0xff:
             ret += h//100
         return ret
 
@@ -2134,18 +2102,15 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
         match unpack('>h', self.contents[9:11])[0]:
             case -0x8000:     deviation = ''
             case _ as value: deviation = str(value)
-        return F'{self.strfdate} {self.strftime} {deviation}'
-
-    def is_default_value(self) -> bool:
-        return True if self.contents == b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\x80\x00\xff' else False
+        return F"{self.strfdate} {self.strftime} {deviation}"
 
     def to_datetime(self) -> datetime.datetime:
         year_highbyte, year_lowbyte, month, day_of_month, _, hour, minute, second, hundredths, deviation_highbyte, deviation_lowbyte, _ = self.contents
         year = year_highbyte*256+year_lowbyte
         deviation = deviation_highbyte*256 + deviation_lowbyte
         return datetime.datetime(year=year if year != 0xffff else datetime.MINYEAR,
-                                 month=month if month not in {0xff, 0xfe, 0xfd} else 1,
-                                 day=day_of_month if day_of_month not in {0xff, 0xfe, 0xfd} else 1,
+                                 month=1 if month in (0xff, 0xfe, 0xfd) else month,
+                                 day=1 if day_of_month in (0xff, 0xfe, 0xfd) else day_of_month,
                                  hour=hour if hour != 0xff else 0,
                                  minute=minute if minute != 0xff else 0,
                                  second=second if second != 0xff else 0,
@@ -2157,15 +2122,24 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
         return self.to_datetime()
 
     @property
-    def deviation(self) -> int | None:
-        """:return in minute if posible"""
-        deviation = self.contents[9]*256 + self.contents[10]
-        return deviation if deviation != 0x8000 else None
+    def deviation(self) -> int:
+        return self.contents[9]*256 + self.contents[10]
+
+    def set_deviation(self, value: int):
+        if (
+            -720 <= value <= 720
+            or value == 0x8000
+        ):
+            contents = bytearray(self.contents)
+            contents[9:11] = value.to_bytes(2, "big")
+            self.__dict__["contents"] = bytes(contents)
+        else:
+            raise OutOfRange(F"in year: got {value}, expected -720..720, 32768")
 
     @property
     def time_zone(self) -> datetime.timezone | None:
         """:return timezone from deviation """
-        if self.deviation is None:
+        if self.deviation == 0x8000:
             return None
         else:
             return datetime.timezone(datetime.timedelta(minutes=self.deviation))
@@ -2174,11 +2148,11 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
         """ search and return date(datetime format) in left from point """
         res: datetime.datetime = self.to_datetime()
         """ time in left from point """
-        months = range(point.month, 0, -1) if self.month is None else (self.month,)
+        months = range(point.month, 0, -1) if self.month == 0xff else (self.month,)
         """ months sequence from 12 to 1 with start from current month or self month """
-        days = range(point.day, 0, -1) if self.day is None else (self.day,)
+        days = range(point.day, 0, -1) if self.day == 0xff else (self.day,)
         """ days sequence from 31 to 1 with start from current day or self day """
-        for year in range(point.year, datetime.MINYEAR, -1) if self.year is None else (self.year, ):
+        for year in range(point.year, datetime.MINYEAR, -1) if self.year == 0xff else (self.year, ):
             res = res.replace(year=year)
             for month in months:
                 res = res.replace(month=month)
@@ -2187,25 +2161,25 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
                     if res > point:
                         continue
                     elif (
-                        self.weekday is not None
+                        self.weekday != 0xff
                         and self.weekday != (res.weekday() + 1)
                     ):
                         continue
                     else:
                         return res
-                days = range(31, 0, -1) if self.day is None else self.day,
-            months = range(12, 0, -1) if self.month is None else self.month,
+                days = range(31, 0, -1) if self.day == 0xff else self.day,
+            months = range(12, 0, -1) if self.month == 0xff else self.month,
         return None
 
     def get_right_nearest_date(self, point: datetime.datetime) -> datetime.datetime | None:
         """ search and return date(datetime format) in rigth from point """
         res: datetime.datetime = self.to_datetime()
         """ time in left from point """
-        months = range(point.month, 12) if self.month is None else (self.month,)
+        months = range(point.month, 12) if self.month == 0xff else (self.month,)
         """ months sequence from 12 to 1 with start from current month or self month """
-        days = range(point.day, 32) if self.day is None else (self.day,)
+        days = range(point.day, 32) if self.day == 0xff else (self.day,)
         """ days sequence from 31 to 1 with start from current day or self day """
-        for year in range(point.year, datetime.MAXYEAR) if self.year is None else (self.year, ):
+        for year in range(point.year, datetime.MAXYEAR) if self.year == 0xff else (self.year, ):
             res = res.replace(year=year)
             for month in months:
                 res = res.replace(month=month)
@@ -2220,8 +2194,8 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
                         continue
                     else:
                         return res
-                days = range(0, 32) if self.day is None else self.day,
-            months = range(0, 12) if self.month is None else self.month,
+                days = range(0, 32) if self.day == 0xff else self.day,
+            months = range(0, 12) if self.month == 0xff else self.month,
         return None
 
     def get_right_nearest_datetime(self, point: datetime.datetime) -> datetime.datetime | None:
@@ -2232,22 +2206,22 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
             return None
         is_this_day: bool = res.date() == point.date()
         """ flag of points equaling """
-        for hour in range(point.hour if is_this_day else 0, 24) if self.hour is None else (self.hour,):
+        for hour in range(point.hour if is_this_day else 0, 24) if self.hour == 0xff else (self.hour,):
             res = res.replace(hour=hour)
-            for minute in range(point.minute if is_this_day and res.hour == point.hour else 0, 60) if self.minute is None else (self.minute,):
+            for minute in range(point.minute if is_this_day and res.hour == point.hour else 0, 60) if self.minute == 0xff else (self.minute,):
                 res = res.replace(minute=minute)
                 for second in range(point.second if (
                         is_this_day
                         and res.hour == point.hour
                         and res.minute == point.minute
-                ) else 0, 60) if self.second is None else (self.second,):
+                ) else 0, 60) if self.second == 0xff else (self.second,):
                     res = res.replace(second=second)
                     for microsecond in range(point.microsecond if (
                             is_this_day
                             and res.hour == point.hour
                             and res.minute == point.minute
                             and res.second == point.second
-                    ) else 0, 990000) if self.hundredths is None else (self.hundredths * 10000,):
+                    ) else 0, 990000) if self.hundredths == 0xff else (self.hundredths * 10000,):
                         res = res.replace(microsecond=microsecond)
                         if res < point:
                             continue
@@ -2263,16 +2237,16 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
             return None
         is_this_day: bool = l_point.date() == point.date()
         """ flag of points equaling """
-        for hour in range(point.hour if is_this_day else 23, -1, -1) if self.hour is None else (self.hour,):
+        for hour in range(point.hour if is_this_day else 23, -1, -1) if self.hour == 0xff else (self.hour,):
             l_point = l_point.replace(hour=hour)
-            for minute in range(point.minute if is_this_day and l_point.hour == point.hour else 59, -1, -1) if self.minute is None else (self.minute,):
+            for minute in range(point.minute if is_this_day and l_point.hour == point.hour else 59, -1, -1) if self.minute == 0xff else (self.minute,):
                 l_point = l_point.replace(minute=minute)
                 for second in range(point.second if is_this_day and l_point.hour == point.hour and
-                                    l_point.minute == point.minute else 59, -1, -1) if self.second is None else (self.second,):
+                                    l_point.minute == point.minute else 59, -1, -1) if self.second == 0xff else (self.second,):
                     l_point = l_point.replace(second=second)
                     for microsecond in range(point.microsecond if is_this_day and l_point.hour == point.hour and
                                              l_point.minute == point.minute and
-                                             l_point.second == point.second else 990000, -1, -10000) if self.hundredths is None else (self.hundredths * 10000,):
+                                             l_point.second == point.second else 990000, -1, -10000) if self.hundredths == 0xff else (self.hundredths * 10000,):
                         l_point = l_point.replace(microsecond=microsecond)
                         if l_point > point:
                             continue
@@ -2374,16 +2348,16 @@ class Time(__DateTime, __Time, SimpleDataType):
         """ search and return time in left from point """
         l_point: datetime.time = self.decode()
         """ time in left from point """
-        for hour in range(point.hour, -1, -1) if self.hour is None else (self.hour,):
+        for hour in range(point.hour, -1, -1) if self.hour == 0xff else (self.hour,):
             l_point = l_point.replace(hour=hour)
-            for minute in range(point.minute if l_point.hour == point.hour else 59, -1, -1) if self.minute is None else (self.minute,):
+            for minute in range(point.minute if l_point.hour == point.hour else 59, -1, -1) if self.minute == 0xff else (self.minute,):
                 l_point = l_point.replace(minute=minute)
                 for second in range(point.second if l_point.hour == point.hour and
-                                    l_point.minute == point.minute else 59, -1, -1) if self.second is None else (self.second,):
+                                    l_point.minute == point.minute else 59, -1, -1) if self.second == 0xff else (self.second,):
                     l_point = l_point.replace(second=second)
                     for microsecond in range(point.microsecond if l_point.hour == point.hour and
                                              l_point.minute == point.minute and
-                                             l_point.second == point.second else 990000, -1, -10000) if self.hundredths is None else (self.hundredths * 10000,):
+                                             l_point.second == point.second else 990000, -1, -10000) if self.hundredths == 0xff else (self.hundredths * 10000,):
                         l_point = l_point.replace(microsecond=microsecond)
                         if l_point > point:
                             continue

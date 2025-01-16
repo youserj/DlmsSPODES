@@ -52,13 +52,7 @@ class TimeZone(cdt.Long):
 
 
 class Clock(ic.COSEMInterfaceClasses):
-    """ An instance of the “Clock” interface class handles all information that is related to date and time, including leap years and the deviation of
-    the local time to a generalized time reference (Greenwich Mean Time, GMT). The deviation from the local time to the generalized time reference can
-    change depending on the season (e.g. summertime vs. wintertime). The interface to an external client is based on date information specified
-    in day, month and year, time information given in hundredths of seconds, seconds, minutes and hours and the deviation from the local time to the
-    generalized time reference.
-    It also handles the daylight saving function in that way; i.e. it modifies the deviation of local time to GMT depending on the attributes.
-    The start and end point of that function is normally set once. An internal algorithm calculates the real switch point depending on these settings. """
+    """4.5.1 Clock"""
     CLASS_ID = ClassID.CLOCK
     VERSION = Version.V0
     A_ELEMENTS = (ic.ICAElement("time", cst.OctetStringDateTime, classifier=ic.Classifier.DYNAMIC),
@@ -134,19 +128,3 @@ class Clock(ic.COSEMInterfaceClasses):
     @property
     def shift_time(self) -> ShiftTime:
         return self.get_meth(6)
-
-    def get_current_time(self) -> datetime.datetime:
-        """ decided approximately server datetime without reading """
-        try:
-            record_time = self.get_record_time(2).decode()
-        except AttributeError:
-            raise AttributeError('Record time for Clock not found')
-        TZ = datetime.timezone(datetime.datetime.now() - datetime.datetime.utcnow())
-        delta = datetime.datetime.now(TZ) - record_time
-        if self.time_zone is None:
-            time_zone: datetime.timezone = self.time.time_zone
-            if self.time.time_zone is None:
-                raise ValueError('TimeZone not found in Clock object: time and timezone attributes')
-        else:
-            time_zone = datetime.timezone(datetime.timedelta(minutes=self.time_zone.decode()))
-        return self.time.decode().replace(tzinfo=time_zone) + delta

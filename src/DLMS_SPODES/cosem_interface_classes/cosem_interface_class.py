@@ -346,7 +346,6 @@ class COSEMInterfaceClasses(ABC):
     __attributes: list[cdt.CommonDataType | None]
     __specific_methods: tuple[cdt.CommonDataType, ...] = None
     _cbs_attr_post_init: dict[int, Callable]
-    __record_time: list[cdt.DateTime | None]  # TODO: make to int
     collection: Any | None  # Collection. todo: remove in future
 
     def __init__(self, logical_name: cst.LogicalName | bytes | str):
@@ -371,8 +370,6 @@ class COSEMInterfaceClasses(ABC):
 
         self._cbs_attr_before_init = dict()
         """container with callbacks for before initial attribute by index"""
-
-        self.__record_time = [None] * len(self.A_ELEMENTS)
 
         # init all attributes with default value
         for i in range(2, len(self.A_ELEMENTS)+2):
@@ -483,12 +480,6 @@ class COSEMInterfaceClasses(ABC):
             return self.__specific_methods[index-1]
         else:
             raise IndexError(F'not support {index=} as attribute')
-
-    def get_record_time(self, index: int) -> cdt.DateTime | None:
-        return self.__record_time[index-2]
-
-    def set_record_time(self, index: int, value: str | bytes | cdt.DateTime):
-        self.__record_time[index-2] = cdt.DateTime(value)
 
     def get_index_with_attributes(self) -> Iterator[tuple[int, cdt.CommonDataType | None]]:
         """ if by initiation order is True then need override method for concrete class"""

@@ -57,7 +57,9 @@ class TestType(unittest.TestCase):
         pattern = datetime.datetime(2021, 1, 1, 10, tzinfo=datetime.timezone.utc)
         self.assertEqual((new := cdt.DateTime(pattern)).to_datetime(), pattern, 'init from datetime and decoding')
         data = cdt.DateTime("01.__.2021 10:00 700")
-        tz = data.time_zone
+        self.assertEqual(data.deviation, 700)
+        data.set_deviation(100)
+        self.assertEqual(data.deviation, 100)
         l = data.get_left_nearest_datetime(datetime.datetime(2021, 5, 10, tzinfo=datetime.timezone.utc))
         r = data.get_right_nearest_datetime(datetime.datetime(2021, 5, 10, tzinfo=datetime.timezone.utc))
         print(l, r)
