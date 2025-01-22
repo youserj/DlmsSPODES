@@ -2074,7 +2074,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
         """ months sequence from 12 to 1 with start from current month or self month """
         days = range(point.day, 0, -1) if self.day == 0xff else (self.day,)
         """ days sequence from 31 to 1 with start from current day or self day """
-        for year in range(point.year, datetime.MINYEAR, -1) if self.year == 0xff else (self.year, ):
+        for year in range(point.year, datetime.MINYEAR, -1) if self.year == 0xffff else (self.year, ):
             res = res.replace(year=year)
             for month in months:
                 res = res.replace(month=month)
@@ -2101,7 +2101,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
         """ months sequence from 12 to 1 with start from current month or self month """
         days = range(point.day, 32) if self.day == 0xff else (self.day,)
         """ days sequence from 31 to 1 with start from current day or self day """
-        for year in range(point.year, datetime.MAXYEAR) if self.year == 0xff else (self.year, ):
+        for year in range(point.year, datetime.MAXYEAR) if self.year == 0xffff else (self.year, ):
             res = res.replace(year=year)
             for month in months:
                 res = res.replace(month=month)
@@ -2367,7 +2367,7 @@ def encoding2semver(value: bytes) -> SemVer:
     :raises  ValueError, TypeError: for SemVer"""
     data = get_common_data_type_from(value[:1])(value)
     return SemVer.parse(
-        version=data.to_transcript(),
+        version=data.contents,
         optional_minor_and_patch=True)
 
 
