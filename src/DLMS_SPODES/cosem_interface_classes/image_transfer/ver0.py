@@ -93,33 +93,6 @@ class ImageTransfer(ic.COSEMInterfaceClasses):
     def image_activate(self) -> integers.Only0:
         return self.get_meth(4)
 
-    def set_image_for_update(self, value: bytes, identifier: bytearray):
-        """ set to image_for_update from bytes and set to first block if identifier is new """
-        block_size: int = self.image_block_size.decode()
-        self.clear_image()
-        while len(value) != 0:
-            self.__blocks_for_update.append(bytearray(value[:block_size]))
-            value = value[block_size:]
-        if bytes(identifier) != self.image_transfer_initiate.image_identifier.contents:
-            self.image_transfer_initiate.image_identifier.set(identifier)
-            self.image_block_transfer.image_block_number.set(0)
-        elif self.current_block_transfer == 0:
-            pass
-        elif self.current_block_transfer >= len(self.__blocks_for_update):
-            self.image_block_transfer.image_block_number.set(0)
-        else:
-            self.image_block_transfer.image_block_number.set(self.current_block_transfer - 1)
-        self.image_transfer_initiate.image_size.set(sum(map(len, self.__blocks_for_update)))
-        self.image_block_transfer.image_block_value.set(self.__blocks_for_update[self.current_block_transfer])
-
-    @property
-    def sent_blocks_part(self) -> float:
-        """ return part of sent block if available else 0 """
-        if len(self.__blocks_for_update) != 0:
-            return self.image_block_transfer.image_block_number.decode() / len(self.__blocks_for_update)
-        else:
-            return 0
-
     @property
     def current_block_transfer(self) -> int:
         return int(self.image_block_transfer.image_block_number)

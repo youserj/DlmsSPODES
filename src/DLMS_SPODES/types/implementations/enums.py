@@ -5,7 +5,7 @@ class CommSpeed(cdt.Enum, elements=tuple(range(10))):
     """ The communication speed supported by the corresponding port. This communication speed can be overridden if the HDLC mode of a devive is entered through a special mode
     of another protocol. """
 
-    def decode(self) -> int:
+    def to_transcript(self) -> int:
         """ override enum key to enum value"""
         match self.contents:
             case b'\x00':  return 300

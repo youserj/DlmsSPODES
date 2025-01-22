@@ -24,11 +24,11 @@ class CommonDataTypeChoiceBase(ut.CHOICE, ABC):
                 raise TypeError(F"got {t.__class__} expected cdt or dict")
 
 
-class SimpleDataTypeChoice(CommonDataTypeChoiceBase, types=cdt.SimpleDataType.__subclasses__()):
+class SimpleDataTypeChoice(CommonDataTypeChoiceBase, types=cdt.SimpleDataTypes):
     """All Simple Data Types"""
 
 
-class ComplexDataTypeChoice(CommonDataTypeChoiceBase, types=cdt.ComplexDataType.__subclasses__()):
+class ComplexDataTypeChoice(CommonDataTypeChoiceBase, types=cdt.ComplexDataTypes):
     """All Complex Data Types"""
 
 
@@ -36,7 +36,7 @@ class AccessSelectorsChoice(CommonDataTypeChoiceBase, types=(cdt.NullData, cdt.A
     """All Complex Data Types"""
 
 
-class CommonDataTypeChoice(CommonDataTypeChoiceBase, types=chain(cdt.SimpleDataType.__subclasses__(), cdt.ComplexDataType.__subclasses__())):
+class CommonDataTypeChoice(CommonDataTypeChoiceBase, types=chain(cdt.SimpleDataTypes, cdt.ComplexDataTypes)):
     """Types of Data.value"""
 
 

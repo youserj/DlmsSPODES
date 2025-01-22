@@ -3,9 +3,8 @@ from ..__class_init__ import *
 from ...types import choices
 
 
-class SecurityPolicyVer1(cdt.FlagMixin, cdt.Enum, elements=tuple(range(8))):
-    """ Enforces authentication and/or encryption and/or digital signature using the security algorithms available within security suite. It applies independently for requests and
-     responses. When enum value is interpreted as an unsigned, the meaning of each bit is as shown below """
+class SecurityPolicyVer1(cdt.IntegerFlag, cdt.Enum):
+    """ security_policy"""
 
 
 class CertificateEntity(cdt.Enum, elements=(0, 1, 2, 3)):

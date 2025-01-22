@@ -22,8 +22,8 @@ class ModemProfileElement(cdt.OctetString):
 
     def __init__(self, value: bytes = b'OK'.hex()):
         super(ModemProfileElement, self).__init__(value)
-        if self.decode() not in self.get_validate_values():
-            raise ValueError(F'Got modem profile element {self.decode()}, expected {b", ".join(self.get_validate_values())}')
+        if bytes(self) not in self.get_validate_values():  # todo: make ReportMixin
+            raise ValueError(F'Got modem profile element {bytes(self)}, expected {b", ".join(self.get_validate_values())}')
         else:
             pass
 

@@ -1,4 +1,5 @@
-from itertools import chain
+import struct
+from itertools import chain, count
 import re
 from dataclasses import dataclass, field
 from struct import pack, unpack
@@ -32,6 +33,10 @@ class OutOfRange(CDTError):
 
 class ValidationError(CDTError):
     """CommonDataType value not valid"""
+
+
+class ParseError(CDTError):
+    """can't parse transcription"""
 
 
 @dataclass
@@ -163,6 +168,10 @@ def call_wrong_tag_in_value(value: bytes, expected: TAG):
     raise ValueError(F"can't create {expected} with value {value}")
 
 
+Transcript: TypeAlias = str | list[Self]
+"""represent of CDT contents by string/list values"""
+
+
 class CommonDataType(ABC):
     """ DLMS BlueBook(IEC 62056-6-2) 13.0 4.1.5 Common data types . X.690: OSI networking and system aspects – Abstract Syntax Notation One (ASN.1) """
     cb_post_set: Callable
@@ -265,6 +274,15 @@ class CommonDataType(ABC):
     def __hash__(self):
         return int.from_bytes(self.encoding, "big")
 
+    @classmethod
+    @abstractmethod
+    def parse(cls, value: Transcript) -> Self:
+        """new instance from from Transcript"""
+
+    @abstractmethod
+    def to_transcript(self) -> Transcript:
+        """inverse of parse"""
+
 
 def get_type_name(value: CommonDataType | Type[CommonDataType]) -> str:
     """type name from type or instance of CDT with length and constant value"""
@@ -320,6 +338,13 @@ class SimpleDataType(CommonDataType, ABC):
         if hasattr(self, 'cb_post_set'):
             self.cb_post_set()
 
+    def to_transcript(self) -> str:
+        return str(self)
+
+    @abstractmethod
+    def __str__(self):
+        ...
+
 
 class ConstantMixin:
     """override set method for SimpleDataType"""
@@ -343,6 +368,9 @@ class ComplexDataType(CommonDataType, ABC):
     def encoding(self) -> bytes:
         """ The complete sequence of octets used to represent the data value. """
         return self.TAG + encode_length(len(self.values)) + self.contents
+
+    def to_transcript(self) -> Transcript:
+        return [el.decode() for el in self]
 
 
 class __Array(ABC):
@@ -411,63 +439,11 @@ class _String(ABC):
         return self.contents
 
 
-class FlagMixin(ABC):
-    """ Used for override Common Data Type as Flag data """
-    ELEMENTS: dict[int, str]
-    contents: bytes
-
-    def validation(self):
-        """ call exception if bit is absence in elements"""
-        mask = int('1'*len(self.contents)*8, base=2)
-        for el in self.ELEMENTS.keys():
-            mask ^= 1 << el
-        match mask & int.from_bytes(self.contents, 'big'):
-            case 0:              """ validation OK. Not using bit is not set """
-            case _ as bit_error: raise ValueError(F'Unused bit set: {bin(bit_error)}')
-
-    def from_str(self, value: str) -> bytes:
-        value = value + '0' * ((8 - len(self)) % 8)
-        list_ = [value[count:(count + 8)] for count in range(0, len(self), 8)]
-        value = b''
-        for byte in list_:
-            value += int(byte, base=2).to_bytes(1, byteorder='little')
-        return value
-
-    def from_none(self) -> bytes:
-        """because differ from Enum ELEMENT keys"""
-        return next(iter(self.ELEMENTS)).to_bytes(1, 'little')
-
-    def decode(self) -> list[int]:
-        """ TODO: copypast BitString """
-        ret = list()
-        for byte_ in self.contents:
-            ret.extend([(byte_ >> it) & 0b00000001 for it in range(7, -1, -1)])
-        return ret[:len(self)]
-
-    def __len__(self):
-        """ return bits amount """
-        return max(self.ELEMENTS.keys()) + 1
-
-    def __str__(self):
-        """ TODO: copypast BitString """
-        return ''.join(map(str, self.decode()))
-
-    def validate_from(self, value: str, cursor_position=None):
-        """ return 'Ok' if string is valid else return valid Str. TODO: copypast BitString """
-        if self.ELEMENTS:
-            type(self)(value=value.zfill(len(self.ELEMENTS)))
-        else:
-            type(self)(value=value)
-        return value, cursor_position
-
-
-class Digital(ABC):
+class Digital(CommonDataType, ABC):
     """ Default value is 0 """
-    contents: bytes
-    TAG: TAG
+    SIGNED: bool
+    LENGTH: int
     DEFAULT = None
-    MIN: int | None = None
-    MAX: int | None = None
     VALUE: int | None = None
     """integer if is it constant value"""
 
@@ -518,14 +494,22 @@ class Digital(ABC):
         """ override SimpleDataType for send scaler_unit . use only for check and send contents """
         return self.__class__(value)
 
-    def from_int(self, value: int | float) -> bytes:
+    @classmethod
+    def from_int(cls, value: int | float) -> bytes:
         try:
-            return int(value).to_bytes(self.LENGTH, 'big', signed=self.SIGNED)
+            return int(value).to_bytes(
+                length=cls.LENGTH,
+                byteorder="big",
+                signed=cls.SIGNED)
         except OverflowError:
             raise ValueError(F'value {value} out of range')
 
-    def from_str(self, value: str, scaler: int = 0) -> bytes:
-        return self.from_int(float(value)*10**(-scaler))
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(cls.from_int(float(value))))
+
+    def from_str(self, value: str) -> bytes:
+        return self.from_int(float(value))
 
     def clear(self):
         if self.DEFAULT:
@@ -536,10 +520,6 @@ class Digital(ABC):
     @property
     def encoding(self) -> bytes:
         return self.TAG + self.contents
-
-    def decode(self) -> int | float:
-        """ return the build in integer type or float type """
-        return int.from_bytes(self.contents, 'big', signed=self.SIGNED)
 
     def __int__(self):
         return int.from_bytes(self.contents, 'big', signed=self.SIGNED)
@@ -557,23 +537,13 @@ class Digital(ABC):
             tmp >>= 1
             self.__dict__["contents"] = tmp.to_bytes(self.LENGTH, "big")
 
-    @property
-    @abstractmethod
-    def SIGNED(self) -> bool:
-        """ True for signed digital, False for unsigned. Default is unsigned"""
-
-    @property
-    @abstractmethod
-    def LENGTH(self) -> int:
-        """ Content length of type"""
-
     def __str__(self):
         return str(int(self))
 
     def __gt__(self, other: Self | int):
         match other:
-            case int():     return self.decode() > other
-            case Digital(): return self.decode() > other.decode()
+            case int():     return int(self) > other
+            case Digital(): return int(self) > int(other)
             case _:         raise ValueError(F'Compare type is {other.__class__}, expected Digital')
 
     def __len__(self) -> int:
@@ -585,7 +555,7 @@ class Digital(ABC):
         return value, cursor_position
 
     def __hash__(self):
-        return self.decode()
+        return int(self)
 
 
 type BitNumber = int
@@ -598,8 +568,11 @@ class IntegerFlag(ReportMixin, Digital, ABC):
 
     def __init_subclass__(cls, **kwargs):
         """initiate NAMES name use config.toml"""
-        if not cls.NAMES:
+        if cls.NAMES is None:
             cls.NAMES = {int(k): v for k, v in class_names.items()} if (class_names := get_values("DLMS", "flag_name", F"{cls.__name__}")) else dict()
+        else:  # expand
+            for k, v in get_values("DLMS", "flag_name", F"{cls.__name__}").items():  # todo: handle None
+                cls.NAMES[int(k)] = v
 
     def get_report(self) -> Report:
         l = INFO_LOG
@@ -635,23 +608,8 @@ class IntegerFlag(ReportMixin, Digital, ABC):
         self[index] = not self[index]
 
 
-class Float(ABC):
-    contents: bytes
-    TAG: TAG
-
-    @abstractmethod
-    def __len__(self):
-        """constant for contents length"""
-
-    @property
-    @abstractmethod
-    def fraction_wide(self) -> int:
-        """ constant for fraction wide """
-
-    @property
-    @abstractmethod
-    def exponent_wide(self) -> int:
-        """ constant for exponent wide """
+class Float(SimpleDataType, ABC):
+    FORMAT: str
 
     def __init__(self, value: bytes | bytearray | str | int | float | SimpleDataType = None):
         match value:
@@ -670,6 +628,17 @@ class Float(ABC):
             case Float():                                                          self.contents = value.contents
             case _:                                                                raise ValueError(F'Error create {self.TAG} with value {value}')
 
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        try:
+            ret = cls.from_float(float(value))
+        except ValueError:
+            ret = cls.from_float(float.fromhex(value))
+        except OverflowError as e:
+            raise ParseError(str(e))
+        return cls(bytearray(ret))
+
+    @deprecated("use parse")
     def from_str(self, value: str) -> bytes:
         """ Input 1. float: <sign><integer>.<fraction>[e[-+]power] example: 1.0, -0.003, 1e+12, 4.5e-7
          2. hex_float:  <sign>0x<integer>.<fraction>p[+-]<power> example 0x1.e4d00p+15 (62056.0) """
@@ -685,34 +654,17 @@ class Float(ABC):
         """ The complete sequence of octets used to represent the data value. """
         return self.TAG + self.contents
 
-    def from_float(self, value: float) -> bytes:
+    # todo: wrong encode
+    @classmethod
+    def from_float(cls, value: float) -> bytes:
         """ Input float: <sign><integer>.<fraction>[e[-+]power] example: 1.0, -0.003, 1e+12, 4.5e-7 """
         if 'inf' in str(value):
             raise OverflowError(F'Float overflow error')
-        hex_string = value.hex()
-        sign, mantissa_and_exponent = hex_string.split('0x')
-        sign = 1 << (len(self) * 8 - 1) if sign else 0
-        mantissa, exponent = mantissa_and_exponent.split('p')
-        integer, fraction = mantissa.split('.')
-        integer = int(integer, base=16)
-        exponent = (int(exponent) + 2 ** (len(self) - 1) - 1)
-        if exponent >= 2 ** self.exponent_wide:
-            raise OverflowError(F'Exponent overflow error')
-        exponent <<= self.fraction_wide if integer else 0
-        fraction_quartet_amount = ceil(self.fraction_wide / 4)
-        offset = fraction_quartet_amount*4 - self.fraction_wide
-        fraction = int(fraction[:fraction_quartet_amount], base=16) >> offset
-        return (sign + exponent + fraction).to_bytes(len(self), 'big')
+        return pack(cls.FORMAT, value)
 
-    def decode(self) -> float:
+    def __float__(self):
         """  return the build in float type IEEE 60559"""
-        sign = self.contents[0] >> 7
-        exponent = (int.from_bytes(self.contents[:2], 'big') & 0x7fff) >> (15 - self.exponent_wide)
-        fraction = int.from_bytes(self.contents[1:], 'big') & (1 << self.fraction_wide)-1
-        ret = 2 ** (exponent - 2**(self.exponent_wide-1)+1) * (1 + fraction/(1 << self.fraction_wide))
-        if sign:
-            ret *= -1
-        return ret
+        return unpack(cls.FORMAT, value)[0]
 
     def validate_from(self, value: str, cursor_position=None) -> tuple[str, int]:
         # adding '0' for available set service symbols
@@ -721,9 +673,9 @@ class Float(ABC):
         return SimpleDataType(self).validate_from(value, cursor_position)
 
     def __str__(self):
-        return str(self.decode())
+        return str(float(self))
 
-    def clear(self):
+    def clear(self):  # todo: remove this
         self.contents = bytes(len(self))
 
 
@@ -1123,12 +1075,15 @@ class NullData(SimpleDataType):
             case None | str() | NullData():        pass
             case _:                                raise ValueError(F"error create {self.TAG} with value {value}")
 
+    @classmethod
+    def parse(cls, value: str = None) -> Self:
+        return cls()
+
     @property
     def contents(self) -> bytes: return b''
 
-    def __str__(self): return 'null-data'
-
-    def decode(self): return None
+    def __str__(self):
+        return 'null-data'
 
     @property
     def encoding(self) -> bytes: return b'\x00'
@@ -1146,11 +1101,13 @@ class Array(__Array, ComplexDataType):
     unique: bool = False
     """ True for arrays with unique elements """
 
-    def __init__(self, value: bytes | list | None | Self = None, type_: Type[CommonDataType] = None):
+    def __init__(self, value: list[CommonDataType | list] | bytes | None | Self = None, type_: Type[CommonDataType] = None):
         self.__dict__['values'] = list()
         if type_:
             self.__dict__["TYPE"] = type_
         match value:
+            case list():  # main init data,
+                self.__dict__["values"] = value
             case bytes():
                 match value[:1], value[1:]:
                     case self.TAG, length_and_contents:
@@ -1164,7 +1121,7 @@ class Array(__Array, ComplexDataType):
                             self.append(new_element)
                     case b'', _:   raise ValueError(F'Wrong Value. Value not consist the tag. Empty Value.')
                     case _:        raise ValueError(F"Expected {self.TAG} type, got {TAG(value[:1])}")
-            case list():           deque(map(self.append, value))
+            # case list():           deque(map(self.append, value))
             case None:             """create empty array"""
             case Array():          self.__init__(value.encoding)  # TODO: make with bytearray
             case _:                raise ValueError(F'Init {self.__class__} with Value: "{value}" not supported')
@@ -1191,6 +1148,10 @@ class Array(__Array, ComplexDataType):
     def append_validate(self, element: CommonDataType):
         """validate before append last value. In override here need insert <raise> in some events and register callbacks"""
 
+    @classmethod
+    def parse(cls, value: list) -> Self:
+        return cls([cls.TYPE.parse(val) for val in value])
+
     def __setattr__(self, key, value: CommonDataType):
         match key:
             case 'TYPE' | 'values' as prop:                                         raise ValueError(F"don't support set {prop}")
@@ -1210,9 +1171,6 @@ class Array(__Array, ComplexDataType):
         """ set new type with clear array"""
         self.clear()
         self.__dict__['TYPE'] = value
-
-    def decode(self) -> list:
-        return [el.decode() for el in self.values]
 
     def set(self, value: bytes | bytearray | list | None):
         self.clear()
@@ -1251,13 +1209,17 @@ class Structure(ComplexDataType):
     values: list[CommonDataType, ...]
     DEFAULT: bytes = None
 
-    def __init__(self, value: bytes | tuple | list | None | bytearray | Self = None):
+    def __init__(self, value: list[CommonDataType | list] | bytes | tuple | None | bytearray | Self = None):
         if value is None:
             value = self.DEFAULT
         self.__dict__['values'] = list()
         match value:
-            case bytes():                  self.from_bytes(value)
-            case tuple() | list():         self.from_sequence(value)
+            case list():  # main init data,
+                self.__dict__['values'] = value
+            case bytes():
+                self.from_bytes(value)
+            case tuple():
+                self.from_sequence(value)
             case None:
                 for el in self.ELEMENTS:
                     self.values.append(el.TYPE())
@@ -1347,11 +1309,18 @@ class Structure(ComplexDataType):
                 raise ValueError(F'Struct {self} got length:{length}, expected length:{len(self)}')
             self.from_content(pdu)
 
+    @deprecated("use parse")
     def from_sequence(self, sequence: tuple):
         if len(sequence) != len(self):
             raise ValueError(F'Struct {self.__class__.__name__} got length:{len(sequence)}, expected length:{len(self)}')
         for val, el in zip(sequence, self.ELEMENTS):
             self.values.append(el.TYPE(val))
+
+    @classmethod
+    def parse(cls, value: list) -> Self:
+        if len(value) != len(cls.ELEMENTS):
+            raise ValueError(F"in Struct {cls.__name__} got length:{len(value)}, expected length:{len(cls.ELEMENTS)}")
+        return cls([el.TYPE.parse(val) for val, el in zip(value, cls.ELEMENTS)])
 
     def from_content(self, value: bytes):
         for el in self.ELEMENTS:
@@ -1401,15 +1370,12 @@ class Structure(ComplexDataType):
         else:
             raise ValueError(F"type got {value.TAG}, expected {t.TAG}")
 
-    def decode(self) -> tuple:
-        return tuple(el.decode() for el in self.values)
-
     def get_a_xdr(self) -> bytes:
         """ use in AssociationLN """
         res = bytearray()
-        res.append(40 * self.values[0].decode() + self.values[1].decode())
+        res.append(40 * int(self.values[0]) + int(self.values[1]))
         for i in range(2, len(self.ELEMENTS)):
-            value = self.values[i].decode()
+            value = int(self.values[i])
             tmp = list()
             while value != 0 or not tmp:
                 value, tmp1 = divmod(value, 128)
@@ -1506,6 +1472,13 @@ class Boolean(SimpleDataType):
             raise ValueError(F"expected {self.TAG} type, got {TAG(tag)}")
         return self.from_int(encoding[1])
 
+    def __str__(self) -> str:
+        return "false" if self.contents == b'\x00' else "true"
+
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(b'\x00' if value == "false" else b'\x01'))
+
     def from_int(self, value: int):
         return b'\x00' if value == 0 else b'\x01'
 
@@ -1520,11 +1493,7 @@ class Boolean(SimpleDataType):
     def from_bool(self, value: bool) -> bytes:
         return b'\x01' if value else b'\x00'
 
-    def __str__(self):
-        return str(self.decode())
-
-    def decode(self) -> bool:
-        """ decode to bool """
+    def __bool__(self):
         return False if self.contents == b'\x00' else True
 
     def clear(self):
@@ -1547,7 +1516,7 @@ class BitString(SimpleDataType):
                 self.contents = new_instance.contents
                 self.__length = len(new_instance)
             case bytes():                               self.contents = self.from_bytes(value)
-            case bytearray():                           self.from_bytearray(value)
+            case bytearray():                           self.contents = bytes(value)
             case str():                                 self.contents = self.from_str(value)
             case int():                                 self.contents = self.from_int(value)
             case list():                                self.contents = self.from_list(value)
@@ -1555,6 +1524,9 @@ class BitString(SimpleDataType):
                 self.contents = value.contents
                 self.__length = len(value)
             case _:                                     raise ValueError(F"can't create {self.TAG} with value {value}")
+
+    def set_length(self, value: int):
+        self.__length = value
 
     def from_bytes(self, value: bytes) -> bytes:
         self.__length, pdu = get_length_and_pdu(value[1:])
@@ -1564,6 +1536,15 @@ class BitString(SimpleDataType):
             case self.TAG:                                  raise ValueError(F'Length is {self.__length}, but contents got only {len(pdu) * 8}')
             case _ as error:                                raise ValueError(F"got {TAG(error)}, expected {self.TAG}")
 
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        length = len(value)
+        value = value + '0' * ((8 - length) % 8)
+        new = cls(bytearray((int(value[count:(count + 8)], base=2) for count in range(0, length, 8))))
+        new.set_length(length)
+        return new
+
+    @deprecated("use parse")
     def from_str(self, value: str) -> bytes:
         self.__length = len(value)
         value = value + '0' * ((8 - self.__length) % 8)
@@ -1576,10 +1557,6 @@ class BitString(SimpleDataType):
         """ TODO: see like as Conformance """
         raise ValueError('not supported init from int')
 
-    def from_bytearray(self, value: bytearray) -> bytes:
-        self.__length = len(value) << 3
-        return bytes(value)
-
     def set(self, value: Self | bytes | bytearray | str | int | bool | float | datetime.date | None):
         """ TODO: partly copypast of SimpleDataType"""
         new_value = self._new_instance(value)
@@ -1591,23 +1568,23 @@ class BitString(SimpleDataType):
             self.cb_post_set()
 
     def __setitem__(self, key: int, value: int | bool):
-        tmp = self.decode()
+        tmp = list(self)
         tmp[key] = int(value)
         self.set(''.join(map(str, tmp)))
 
     def inverse(self, index: int):
         """ inverse one bit by index"""
-        self[index] = not self.decode()[index]
+        self[index] = not list(self)[index]
 
     def __lshift__(self, other):
         for i in range(other):
-            tmp: list[int] = self.decode()
+            tmp: list[int] = list(self)
             tmp.append(tmp.pop(0))
             self.set(''.join(map(str, tmp)))
 
     def __rshift__(self, other):
         for i in range(other):
-            tmp: list[int] = self.decode()
+            tmp: list[int] = list(self)
             tmp.insert(0, tmp.pop())
             self.set(''.join(map(str, tmp)))
 
@@ -1630,18 +1607,21 @@ class BitString(SimpleDataType):
 
     def __str__(self):
         """ TODO: copypast FlagMixin"""
-        return ''.join(map(str, self.decode()))
+        return ''.join(map(str, self))
 
     def __getitem__(self, item) -> bytes:
         """ get bit from contents by index """
         return int(str(self)[item]).to_bytes(1, 'big')
 
-    def decode(self) -> list[int]:
-        """ TODO: copypast FlagMixin """
-        ret = list()
-        for byte_ in self.contents:
-            ret.extend([(byte_ >> it) & 0b00000001 for it in range(7, -1, -1)])
-        return ret[:len(self)]
+    def __iter__(self):
+        def g():
+            c = count()
+            for byte_ in self.contents:
+                for it in range(7, -1, -1):
+                    if next(c) < self.__length:
+                        yield (byte_ >> it) & 0b00000001
+
+        return g()
 
     def validate_from(self, value: str, cursor_position: int) -> tuple[str, int]:
         """ return validated value and cursor position. TODO: copypast FlagMixin """
@@ -1667,6 +1647,7 @@ class OctetString(_String, SimpleDataType):
     """ An ordered sequence of octets (8 bit bytes) """
     TAG = TAG(b'\x09')
 
+    @deprecated("use parse")
     def from_str(self, value: str) -> bytes:
         """ input as hex code """
         return bytes.fromhex(value)
@@ -1686,6 +1667,10 @@ class OctetString(_String, SimpleDataType):
     def __str__(self):
         return F"{self.contents.hex(' ')}"
 
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray.fromhex(value))
+
     def __len__(self):
         return len(self.contents)
 
@@ -1700,11 +1685,6 @@ class OctetString(_String, SimpleDataType):
             cursor_position: int = len(value)-1 if cursor_position is None else cursor_position
             type(self)(F'{value[:cursor_position]}0{value[cursor_position:]}')  # check possible
             return value, cursor_position
-
-    # TODO: return value must be bytes or bytearray
-    def decode(self) -> bytes:
-        """ decode to build in bytes type """
-        return bytes(self)
 
     def to_str(self, encoding: str = "utf-8") -> str:
         """ decode to utf-8 by default, replace to '?' if unsupported """
@@ -1736,15 +1716,16 @@ class VisibleString(_String, SimpleDataType):
     def __len__(self):
         return len(self.contents)
 
-    def decode(self, encoding: str = 'cp1251') -> str:
-        """ decode to cp1251 by default, replace to '?' if unsupported """
+    @deprecated("use str")
+    def to_str(self) -> str:
         temp = list()
         for i in self.contents:
             temp.append(i if i >= 32 else 63)
         return bytes(temp).decode(encoding)
 
-    def to_str(self) -> str:
-        return self.decode()
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(value, encoding="utf-8"))
 
 
 class Utf8String(_String, SimpleDataType):
@@ -1760,12 +1741,12 @@ class Utf8String(_String, SimpleDataType):
     def __str__(self):
         return self.contents.decode("utf-8")
 
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(value, "utf-8"))
+
     def __len__(self):
         return len(self.contents)
-
-    # TODO: make it
-    def decode(self) -> int | list | None:
-        raise ValueError("don't implement method")
 
 # TODO: Bcd need more do here, now realisation like as Enum
 
@@ -1793,6 +1774,13 @@ class Bcd(SimpleDataType):
                                                                                                        F'{self.contents_length}, but got {len(length_and_contents)}')
             case _ as wrong_tag, _:                                                   call_wrong_tag_in_value(wrong_tag, self.TAG)
 
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        try:
+            return cls(bytearray(int(value).to_bytes(1, 'little')))
+        except OverflowError:
+            raise ParseError(F"in {cls.__name__} {value=} out of range")
+
     @property
     def encoding(self) -> bytes:
         return self.TAG + self.contents
@@ -1803,6 +1791,7 @@ class Bcd(SimpleDataType):
     @property
     def contents_length(self) -> int: return 1
 
+    @deprecated("use parse")
     def from_str(self, value: str) -> bytes:
         try:
             return int(value).to_bytes(1, 'little')
@@ -1817,10 +1806,6 @@ class Bcd(SimpleDataType):
 
     def __str__(self):
         return str(int.from_bytes(self.contents, byteorder='little'))
-
-    # TODO: make it
-    def decode(self) -> int | list | None:
-        raise ValueError("don't implement method")
 
 
 class Integer(Digital, SimpleDataType):
@@ -1872,10 +1857,6 @@ class CompactArray(__Array, ComplexDataType):
         """ self encoding fof compact array """
         return self.TAG + self.__type.TAG + self.__element_types + encode_length(len(self.elements)) + self.contents
 
-    # TODO: make it
-    def decode(self) -> int | list | None:
-        raise ValueError("don't implement method")
-
 
 class Long64(Digital, SimpleDataType):
     """ Integer64 - 2**63…2**63-1 """
@@ -1894,7 +1875,7 @@ class Long64Unsigned(Digital, SimpleDataType):
 enum_rep = re.compile("\((?P<value>\d{1,3})\).+")
 
 
-class Enum(IntegerEnum, SimpleDataType, ABC):
+class Enum(IntegerEnum, Unsigned, ABC):
     """ The elements of the enumeration type are defined in the “Attribute description” section of a COSEM interface class specification """
     contents: bytes
     TAG = TAG(b'\x16')
@@ -1916,12 +1897,6 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
             case int():                                                   self.contents = self.from_int(value)
             case self.__class__():                                        self.contents = value.contents
             case _:                                                       raise ValueError(F'Unknown type for {self.__class__.__name__} with value {value}<{value.__class__}>')
-
-    def from_int(self, value: int) -> bytes:
-        try:
-            return value.to_bytes(1, 'little')
-        except OverflowError:
-            raise ValueError(F'value: {value} not in range')
 
     def from_str(self, value: str) -> bytes:
         if value.isdigit():
@@ -1949,14 +1924,7 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
             except KeyError as e:
                 c = dict()
                 logger.warning(F"not find {e} in config.toml")
-            cls.ELEMENTS = {el if issubclass(cls, FlagMixin) else el.to_bytes(1, "big"): c.get(el, F"{cls.__name__}({el})") for el in elements}
-
-    @property
-    def encoding(self) -> bytes:
-        return self.TAG + self.contents
-
-    def __str__(self):
-        return str(int(self))   #self.ELEMENTS[self.contents]
+            cls.ELEMENTS = {el.to_bytes(1, "big"): c.get(el, F"{cls.__name__}({el})") for el in elements}
 
     @deprecated("not use this any more")
     def validate_from(self, value: str, cursor_position=None):
@@ -1976,72 +1944,24 @@ class Enum(IntegerEnum, SimpleDataType, ABC):
         """ TODO: """
         return [cls(k).get_report().msg for k in cls.NAMES.keys()]
 
-    def decode(self) -> int:
-        """ return the build in integer type """
-        return int(self)
-
-    def __int__(self):
-        return int.from_bytes(self.contents, 'big')
-
-    def __gt__(self, other: Self):
-        return self.contents > other.contents
-
-    def __hash__(self):
-        return int(self)
-
-    def clear(self):
-        """ nothing do it. TODO: may be to default? """
-
     def __len__(self):
         return len(self.NAMES)
 
 
 class Float32(Float, SimpleDataType):
-    """ Floating point number formats are defined in ISO/IEC/IEEE 60559:2011
-    Format: <s><e{8}><F{23}>.  Where:
-        - s is the sign bit;
-        - e is the exponent; it is 8 bits wide and the exponent bias is +127;
-        - f is the fraction, it is 23 bits.
-        Value = (-1)**s * 2**(e-127) * 1.f """
+    """float32. ISO/IEC/IEEE 60559:2011"""
     TAG = TAG(b'\x17')
-
-    def __len__(self): return 4
-
-    @property
-    def fraction_wide(self) -> int: return 23
-
-    @property
-    def exponent_wide(self) -> int: return 8
-
-    # def validate_from(self, value: str, cursor_position=None) -> tuple[str, int]:
-    #     value = self.additional_string_verification(value)
-    #     return super(Float32, self).validate_from(value, cursor_position)
+    FORMAT = ">f"
 
 
 class Float64(Float, SimpleDataType):
-    """ Floating point number formats are defined in ISO/IEC/IEEE 60559:2011
-    Format: <s><e{11}><F{52}>.  Where:
-        - s is the sign bit;
-        - e is the exponent; it is 11 bits wide and the exponent bias is +1023;
-        - f is the fraction, it is 52 bits.
-        Value = (-1)**s * 2**(e-1023) * 1.f """
+    """float64. ISO/IEC/IEEE 60559:2011"""
     TAG = TAG(b'\x18')
-
-    def __len__(self): return 8
-
-    @property
-    def fraction_wide(self) -> int: return 52
-
-    @property
-    def exponent_wide(self) -> int: return 11
-
-    # def validate_from(self, value: str, cursor_position=None) -> tuple[str, int]:
-    #     value = self.additional_string_verification(value)
-    #     return super(Float64, self).validate_from(value, cursor_position)
+    FORMAT = ">d"
 
 
 class DateTime(__DateTime, __Date, __Time, SimpleDataType):
-    """ DLMS BlueBook(IEC 62056-6-2) 13.0 4.1.5 Common data types"""
+    """date-time"""
     TAG = TAG(b'\x19')
     _separators = ('.', '.', '-', ' ', ':', ':', '.', ' ')
 
@@ -2055,21 +1975,29 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
     @property
     def DEFAULT(self): return b'\x07\xe4\x01\x01\xff\x00\x00\x00\x00\x00\xb4\xff'
 
-    def from_str(self, value: str) -> bytes:
+    #todo: move to parse
+    @classmethod
+    def from_str(cls, value: str) -> bytes:
         def from_deviation() -> bytes:
             nonlocal dev
             match dev:
-                case '':  return b'\x80\x00'
-                case '-': return b'\x00\x00'
-                case _ if dev.isdigit() and -720 <= int(dev) <= 720:   return pack('>H', int(dev))
-                case _:           raise ValueError
+                case '':
+                    return b'\x80\x00'
+                case '-':
+                    return b'\x00\x00'
+                case _ if -720 <= int(dev) <= 720:
+                    return pack('>h', int(dev))
 
         match value.split(sep=' ', maxsplit=2):
-            case date, time, dev: return self.strpdate(date) + self.strptime(time) + from_deviation() + b'\xff'
-            case date, time:      return self.strpdate(date) + self.strptime(time) + b'\x80\x00\xff'
-            case date, :          return self.strpdate(date) + b'\xff\xff\xff\xff\x80\x00\xff'
+            case date, time, dev: return cls.strpdate(date) + cls.strptime(time) + from_deviation() + b'\xff'
+            case date, time:      return cls.strpdate(date) + cls.strptime(time) + b'\x80\x00\xff'
+            case date, :          return cls.strpdate(date) + b'\xff\xff\xff\xff\x80\x00\xff'
             case ['']:            return b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\x80\x00\xff'
             case _:               raise ValueError(F'a lot of separators')
+
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(self.from_str))
 
     def from_datetime(self, value: datetime.datetime) -> bytes:
         """ convert from build to DLMS datetime, weekday not set for uniquely datetime """
@@ -2105,33 +2033,27 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
         return F"{self.strfdate} {self.strftime} {deviation}"
 
     def to_datetime(self) -> datetime.datetime:
-        year_highbyte, year_lowbyte, month, day_of_month, _, hour, minute, second, hundredths, deviation_highbyte, deviation_lowbyte, _ = self.contents
-        year = year_highbyte*256+year_lowbyte
-        deviation = deviation_highbyte*256 + deviation_lowbyte
-        return datetime.datetime(year=year if year != 0xffff else datetime.MINYEAR,
-                                 month=1 if month in (0xff, 0xfe, 0xfd) else month,
-                                 day=1 if day_of_month in (0xff, 0xfe, 0xfd) else day_of_month,
-                                 hour=hour if hour != 0xff else 0,
-                                 minute=minute if minute != 0xff else 0,
-                                 second=second if second != 0xff else 0,
-                                 microsecond=hundredths*10000 if hundredths != 0xff else 0,
-                                 tzinfo=datetime.timezone.utc if deviation == 0x8000 else datetime.timezone(datetime.timedelta(minutes=deviation)))
-
-    @deprecated("use to_datetime")
-    def decode(self) -> datetime.datetime:
-        return self.to_datetime()
+        return datetime.datetime(
+            year=self.year if self.year != 0xffff else datetime.MINYEAR,
+            month=1 if self.month in (0xff, 0xfe, 0xfd) else self.month,
+            day=1 if self.day in (0xff, 0xfe, 0xfd) else self.day,
+            hour=self.hour if self.hour != 0xff else 0,
+            minute=self.minute if self.minute != 0xff else 0,
+            second=self.second if self.second != 0xff else 0,
+            microsecond=self.hundredths*10000 if self.hundredths != 0xff else 0,
+            tzinfo=datetime.timezone.utc if self.deviation == -0x8000 else datetime.timezone(datetime.timedelta(minutes=self.deviation)))
 
     @property
     def deviation(self) -> int:
-        return self.contents[9]*256 + self.contents[10]
+        return unpack(">h", self.contents[9:11])[0]
 
     def set_deviation(self, value: int):
         if (
             -720 <= value <= 720
-            or value == 0x8000
+            or value == -0x8000
         ):
             contents = bytearray(self.contents)
-            contents[9:11] = value.to_bytes(2, "big")
+            contents[9:11] = pack(">h", value)
             self.__dict__["contents"] = bytes(contents)
         else:
             raise OutOfRange(F"in year: got {value}, expected -720..720, 32768")
@@ -2139,7 +2061,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
     @property
     def time_zone(self) -> datetime.timezone | None:
         """:return timezone from deviation """
-        if self.deviation == 0x8000:
+        if self.deviation == -0x8000:
             return None
         else:
             return datetime.timezone(datetime.timedelta(minutes=self.deviation))
@@ -2256,21 +2178,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
 
 
 class Date(__DateTime, __Date, SimpleDataType):
-    """ DLMS BlueBook(IEC 62056-6-2) 13.0 4.1.5 Common data types
-    OCTET STRING (SIZE(5)) {year high_byte, year low_byte, month, day of month, day of week} Where:
-        year: interpreted as long-unsigned range 0…big 0xFFFF = not specified
-            year high_byte and year low_byte represent the 2 bytes of the long-unsigned
-        month: interpreted as unsigned range 1…12, 0xFD, 0xFE, 0xFF 1 is January
-            0xFD = daylight_savings_end
-            0xFE = daylight_savings_begin
-            0xFF = not specified
-        dayOfMonth: interpreted as unsigned range 1…31, 0xFD, 0xFE, 0xFF
-            0xFD = 2nd last day of month
-            0xFE = last day of month
-            0xE0 to 0xFC = reserved
-            0xFF = not specified
-        dayOfWeek: interpreted as unsigned range 1…7, 0xFF 1 is Monday
-            0xFF = not specified"""
+    """date"""
     TAG = TAG(b'\x1a')
     _separators = ('.', '.', '-')
 
@@ -2283,8 +2191,13 @@ class Date(__DateTime, __Date, SimpleDataType):
 
     def __len__(self) -> int: return 5
 
+    @deprecated("use parse")
     def from_str(self, value: str) -> bytes:
         return self.strpdate(value)
+
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(cls.strptime))
 
     def from_datetime(self, value: datetime.datetime) -> bytes:
         return bytes(((value.year >> 8) & 0xFF, value.year & 0xFF, value.month, value.day, value.weekday() + 1))
@@ -2292,7 +2205,7 @@ class Date(__DateTime, __Date, SimpleDataType):
     def from_date(self, value: datetime.date) -> bytes:
         return bytes(((value.year >> 8) & 0xFF, value.year & 0xFF, value.month, value.day, value.weekday() + 1))
 
-    def decode(self) -> datetime.date:
+    def to_datetime(self) -> datetime.date:
         year_highbyte, year_lowbyte, month, day_of_month, _ = self.contents
         year = year_highbyte*256+year_lowbyte
         return datetime.date(year=year if year != 0xffff else datetime.MINYEAR,
@@ -2304,14 +2217,7 @@ class Date(__DateTime, __Date, SimpleDataType):
 
 
 class Time(__DateTime, __Time, SimpleDataType):
-    """ DLMS BlueBook(IEC 62056-6-2) 13.0 4.1.5 Common data types
-    {hour, minute, second, hundredths} Where:
-    hour: interpreted as unsigned range 0…23, 0xFF,
-    minute: interpreted as unsigned range 0…59, 0xFF,
-    second: interpreted as unsigned range 0…59, 0xFF,
-    hundredths: interpreted as unsigned range 0…99, 0xFF
-    For hour, minute, second and hundredths: 0xFF = not specified.
-    For repetitive times the unused parts shall be set to “not specified”."""
+    """time"""
     TAG = TAG(b'\x1b')
     _separators = (':', ':', '.')
 
@@ -2327,6 +2233,10 @@ class Time(__DateTime, __Time, SimpleDataType):
     def from_str(self, value: str) -> bytes:
         return self.strptime(value)
 
+    @classmethod
+    def parse(cls, value: str) -> Self:
+        return cls(bytearray(cls.strptime(value)))
+
     def from_datetime(self, value: datetime.datetime) -> bytes:
         return bytes((value.hour, value.minute, value.second, value.microsecond // 10_000))
 
@@ -2336,7 +2246,7 @@ class Time(__DateTime, __Time, SimpleDataType):
     def __str__(self):
         return self.strftime
 
-    def decode(self) -> datetime.time:
+    def to_time(self) -> datetime.time:
         """ return python time. Used 00 instead 'NOT SPECIFIED'  """
         hour, minute, second, hundredths = self.contents
         return datetime.time(hour=hour if hour != 0xff else 0,
@@ -2346,7 +2256,7 @@ class Time(__DateTime, __Time, SimpleDataType):
 
     def get_left_nearest_time(self, point: datetime.time) -> datetime.time | None:
         """ search and return time in left from point """
-        l_point: datetime.time = self.decode()
+        l_point: datetime.time = self.to_time()
         """ time in left from point """
         for hour in range(point.hour, -1, -1) if self.hour == 0xff else (self.hour,):
             l_point = l_point.replace(hour=hour)
@@ -2457,5 +2367,37 @@ def encoding2semver(value: bytes) -> SemVer:
     :raises  ValueError, TypeError: for SemVer"""
     data = get_common_data_type_from(value[:1])(value)
     return SemVer.parse(
-        version=data.decode(),
+        version=data.to_transcript(),
         optional_minor_and_patch=True)
+
+
+SimpleDataTypes: tuple[CommonDataType, ...] = (
+    NullData,
+    Boolean,
+    BitString,
+    DoubleLong,
+    DoubleLongUnsigned,
+    OctetString,
+    VisibleString,
+    Utf8String,
+    Bcd,
+    Integer,
+    Long,
+    Unsigned,
+    LongUnsigned,
+    Long64,
+    Long64Unsigned,
+    Enum,
+    Float32,
+    Float64,
+    DateTime,
+    Date,
+    Time,
+    # more
+)
+
+ComplexDataTypes: tuple[CommonDataType, ...] = (
+    Array,
+    Structure,
+    CompactArray
+)

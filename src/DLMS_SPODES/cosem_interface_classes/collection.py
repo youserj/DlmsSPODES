@@ -3,7 +3,6 @@ principles (see Clause 4 EN 62056-62:2007), the identification of real data item
 usage of those definitions in the COSEM environment. All codes, which are not explicitly listed, but outside the manufacturer specific range are
 reserved for future use."""
 from struct import pack
-import datetime
 from dataclasses import dataclass
 from itertools import count, chain
 from functools import reduce, cached_property, lru_cache
@@ -75,6 +74,20 @@ _report = {
 }
 if toml_val := get_values("DLMS", "report"):
     _report.update(toml_val)
+
+
+class LIP(bytes):
+    """Logical_name + Attr_index + nested_Parameter"""  # todo: make nested_parameter with expanded index (as length in CDT)
+
+    @property
+    def ln(self) -> bytes:
+        """:return logical_name"""
+        return self[:6]
+
+    @property
+    def i(self) -> int:
+        """:return <attribute index>"""
+        return self[6]
 
 
 LNContaining: TypeAlias = bytes | str | cst.LogicalName | cdt.Structure | ut.CosemObjectInstanceId | ut.CosemAttributeDescriptor | ut.CosemAttributeDescriptorWithSelection \
@@ -535,6 +548,7 @@ func_maps["SPODES_3"] = get_func_map(__func_map_for_create)
 
 # KPZ Update
 __func_map_for_create.update({
+    (0, 0, 97, 98, (0, 10, 20)): ClassMap({0: impl.data.KPZAlarm1}),
     (0, 128, 25, 6, 0): ClassMap({0: impl.data.DataStatic}),
     (0, 128, 96, 13, 1): ClassMap({0: impl.data.ITEBitMap}),
     (0, 128, 154, 0, 0): ClassMap({0: impl.data.KPZGSMPingIP}),
@@ -847,7 +861,7 @@ class Collection:
                 if self.country == CountrySpecificIdentifiers.RUSSIA:
                     if (
                         self.country_ver.par == b'\x00\x00`\x01\x06\xff\x02' and
-                        SemVer.parse(cdt.OctetString(self.country_ver.value).decode(), True) == SemVer(3, 0)
+                        SemVer.parse(bytes(cdt.OctetString(self.country_ver.value)), True) == SemVer(3, 0)
                     ):
                         return "SPODES_3"
                 if self.dlms_ver == 6:
@@ -989,7 +1003,7 @@ class Collection:
         finally:
             return rep
 
-    @lru_cache(20000)
+    # @lru_cache(20000)
     def get_scaler_unit(self,
                         obj: ic.COSEMInterfaceClasses,
                         par: bytes
@@ -1023,6 +1037,12 @@ class Collection:
                     )
             case _:
                 return None
+
+    def lip2su(self, lip: LIP) -> cdt.ScalUnitType | None:
+        """convert LIP to ScalerUnit if possible"""
+        return self.get_scaler_unit(
+            obj=self.__get_object(lip.ln),
+            par=lip[6:])
 
     def filter_by_ass(self, ass_id: int) -> list[InterfaceClass]:
         """return only association objects"""
@@ -2042,7 +2062,7 @@ class Template:
             for i in indexes:
                 if (attr := obj.get_attr(i)) is not None:
                     try:
-                        obj_col.set_attr(i, attr.decode())
+                        obj_col.parse_attr(i, attr.to_transcript())
                     except ValueError as e:
                         ret.append(ValueError(F"can't decode value {attr} for {ln}:{i}"))
                 else:

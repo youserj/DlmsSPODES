@@ -16,7 +16,7 @@ class Entries(cdt.Array):
     __getitem__: SpecDayEntry
 
     def new_element(self) -> SpecDayEntry:
-        indexes: list[int] = [el.index.decode() for el in self.values]
+        indexes: list[int] = [int(el.index) for el in self.values]
         for i in range(0x1_00_00):
             if i not in indexes:
                 return SpecDayEntry((i, None, None))  # TODO: insert first DayID from ActiveCalendar as 3 element
@@ -43,7 +43,7 @@ class Entries(cdt.Array):
 
     def get_indexes(self) -> list[int]:
         """ getter for callback Index """
-        return [entries_element.index.decode() for entries_element in self.values]
+        return [int(entries_element.index) for entries_element in self.values]
 
 
 class SpecialDaysTable(ic.COSEMInterfaceClasses):

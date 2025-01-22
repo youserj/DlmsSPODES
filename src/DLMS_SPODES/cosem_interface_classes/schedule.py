@@ -18,7 +18,7 @@ class Index(cdt.LongUnsigned, min=1, max=9999):
     def check(self, string: str):
         """ raise ValueError with message if string not is valid """
         instance = type(self)(value=string)
-        if instance.decode() in self.__cb_get_indexes():
+        if int(instance) in self.__cb_get_indexes():
             raise ValueError('New index not unique')
 
     @classmethod

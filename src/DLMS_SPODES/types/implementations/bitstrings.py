@@ -84,12 +84,12 @@ class Conformance(cdt.BitString):
 
     @property
     def general_protection(self) -> int:
-        return self.decode()[1]
+        return tuple(self)[1]
 
     @property
     def general_block_transfer(self) -> int:
-        return self.decode()[2]
+        return tuple(self)[2]
 
     @property
     def selective_access(self) -> int:
-        return self.decode()[21]
+        return tuple(self)[21]

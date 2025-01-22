@@ -50,32 +50,3 @@ class IECHDLCSetup(ic.COSEMInterfaceClasses):
     @property
     def device_address(self) -> cdt.LongUnsigned:
         return self.get_attr(9)
-
-    @property
-    def max_info_transmit(self) -> bytes | None:
-        """ return max_info_field_length_transmit if it not default """
-        if self.max_info_field_length_transmit.decode() != self.get_attr_element(5).default:
-            return self.max_info_field_length_transmit.contents
-
-    @property
-    def max_info_receive(self) -> bytes | None:
-        """ return max_info_field_length_receive if it not default """
-        if self.max_info_field_length_receive.decode() != self.get_attr_element(6).default:
-            return self.max_info_field_length_receive.contents
-
-    @property
-    def window_transmit(self) -> bytes | None:
-        """ return windows_size_transmit if it not default """
-        if self.windows_size_transmit.decode() != self.get_attr_element(3).default:
-            return self.windows_size_transmit.contents
-
-    @property
-    def window_receive(self) -> bytes | None:
-        """ return windows_size_receive if it not default """
-        if self.windows_size_receive.decode() != self.get_attr_element(4).default:
-            return self.windows_size_receive.contents
-
-    def get_device_address(self) -> int | None:
-        """ return device address decoding if it used. Value is 0 not used """
-        ret = self.device_address.decode()
-        return ret if ret != 0 else None

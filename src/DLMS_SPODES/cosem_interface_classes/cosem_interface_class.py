@@ -452,6 +452,11 @@ class COSEMInterfaceClasses(ABC):
         else:
             self.__attributes[index-1].set(value)
 
+    def parse_attr(self, index: int, value: cdt.Transcript, data_type: cdt.CommonDataType = None):
+        """set attribute value by Transcript"""
+        dt = self.get_attr_element(index).DATA_TYPE if data_type is None else data_type
+        self.__attributes[index - 1] = dt.parse(value)
+
     def set_attr_link(self, index: int, link: cdt.CommonDataType):
         # self.__attributes[index - 1] = link  # TODO: without validate now for pass load_objects
         if isinstance(link, self.get_attr_element(index).DATA_TYPE):

@@ -77,7 +77,7 @@ class DayProfileAction(cdt.Structure):
     script_selector: cdt.LongUnsigned
 
     def __lt__(self, other: Self):
-        return self.start_time.decode() < other.start_time.decode()
+        return self.start_time.to_time() < other.start_time.to_time()
 
 
 # TODO: make unique by start_time

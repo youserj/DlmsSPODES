@@ -18,8 +18,8 @@ class TestType(unittest.TestCase):
     def test_WeekProfile(self):
         from src.DLMS_SPODES.cosem_interface_classes.activity_calendar import WeekProfile
         value = WeekProfile(("00", 1, 1, 1, 1, 1, 1, 1))
-        self.assertEqual(value.decode(), (b'\x00', 1, 1, 1, 1, 1, 1, 1), "check decoding")
-        print(value.decode()[1:])
+        self.assertEqual(value.to_transcript(), (b'\x00', 1, 1, 1, 1, 1, 1, 1), "check decoding")
+        print(value.to_transcript()[1:])
         a = value[0]
         print(a)
 
