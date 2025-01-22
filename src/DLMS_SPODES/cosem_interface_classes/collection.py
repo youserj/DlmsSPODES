@@ -1009,7 +1009,7 @@ class Collection:
                         par: bytes
                         ) -> cdt.ScalUnitType | None:
         match obj.CLASS_ID, *par:
-            case (ClassID.REGISTER, 2) | (ClassID.DEMAND_REGISTER, 2 | 3):
+            case (ClassID.REGISTER | ClassID.EXT_REGISTER, 2) | (ClassID.DEMAND_REGISTER, 2 | 3):
                 obj: Register | DemandRegister
                 if (s_u := obj.scaler_unit) is None:
                     raise ic.EmptyAttribute(obj.logical_name, 3)
