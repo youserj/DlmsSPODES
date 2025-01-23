@@ -370,7 +370,7 @@ class ComplexDataType(CommonDataType, ABC):
         return self.TAG + encode_length(len(self.values)) + self.contents
 
     def to_transcript(self) -> Transcript:
-        return [el.decode() for el in self]
+        return [el.to_transcript() for el in self]
 
 
 class __Array(ABC):
