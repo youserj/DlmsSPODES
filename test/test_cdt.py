@@ -117,6 +117,9 @@ class TestType(unittest.TestCase):
         context = XDLMSContextType()
         c2 = Conformance.parse("111101110110100000000000")
         self.assertEqual(c, c2, "equal")
+        c2.set("011101110110100000000000")
+        c3 = Conformance("011101110110100000000000")
+        print(list(c3))
 
     def test_Conformance2(self):
         from src.DLMS_SPODES.enums import Conformance

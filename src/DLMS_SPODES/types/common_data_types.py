@@ -370,6 +370,7 @@ class ComplexDataType(CommonDataType, ABC):
         return self.TAG + encode_length(len(self.values)) + self.contents
 
     def to_transcript(self) -> Transcript:
+        el: CommonDataType
         return [el.to_transcript() for el in self]
 
 
@@ -1615,10 +1616,11 @@ class BitString(SimpleDataType):
 
     def __iter__(self):
         def g():
+            l = len(self)
             c = count()
             for byte_ in self.contents:
                 for it in range(7, -1, -1):
-                    if next(c) < self.__length:
+                    if next(c) < l:
                         yield (byte_ >> it) & 0b00000001
 
         return g()

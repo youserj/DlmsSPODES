@@ -40,7 +40,7 @@ class Conformance(cdt.BitString):
             raise ValueError(F'For {self.__class__.__name__} get {len(self)} bits, expected {len(self.ELEMENTS)}')
 
     def __len__(self):
-        return len(self.ELEMENTS)
+        return 24
 
     def from_bytes(self, value: bytes) -> bytes:
         length, pdu = cdt.get_length_and_pdu(value[1:])
