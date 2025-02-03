@@ -154,10 +154,21 @@ class TestType(unittest.TestCase):
         print(value.unit == cdt.Unit(enums.Unit.CURRENT_AMPERE))
 
     def test_Array(self):
-        obj = collection.Data("1.1.1.1.1.1")
-        obj.set_attr(2, b'\x01\x00')
+        class TestArray(cdt.Array):
+            TYPE = cdt.Unsigned
+
+        class TestIC(collection.Data):
+            A_ELEMENTS = (ic.ICAElement("name", TestArray),)
+
+
+        obj = collection.Data("01 01 01 01 01 ff")
+        obj.set_attr(2, bytes.fromhex("01 01 06 00 00 00 00"))
+        r_m = collection.RegisterMonitor("01 01 01 01 01 ff")
+        r_m.set_attr(2, bytes.fromhex("01 01 06 00 00 00 00"))
+        test_obj = TestIC("01 01 01 01 01 ff")
+        test_obj.set_attr(2, bytes.fromhex("01 01 11 00"))
         value: cdt.Array = obj.get_attr(2)
-        self.assertEqual(value.encoding, b'\x01\x00', "check setting")
+        self.assertEqual(value.encoding, b'\x01\x01\x06\x00\x00\x00\x00', "check setting")
         value.set_type(cdt.Unsigned)
         value.append(1)
         value.append(2)

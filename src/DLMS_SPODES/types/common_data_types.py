@@ -1132,11 +1132,12 @@ class Array(__Array, ComplexDataType):
 
     def append(self, element: CommonDataType | None | Any = None):
         """ append element to end """
-        match element:
-            case self.TYPE(): pass
-            case None:        element = self.new_element()
-            case _:           element = self.TYPE(element)
-            # case _:           raise ValueError(F'Types not equal. Must be {self.type.NAME} got {type(element).__name__}')
+        if element is None:
+            element = self.new_element()
+        elif hasattr(self.TYPE, "TYPE"):  # for CHOICE
+            self.__dict__['TYPE'] = self.TYPE.ELEMENTS[element.encoding[0]].TYPE
+        else:
+            element = self.TYPE(element)
         if self.unique and element in self.values:  # TODO: remove after full implement append_validate (see below)
             raise ValueError(F"element {element} already exist in {self.__class__.__name__}")
         self.append_validate(element)
@@ -1155,8 +1156,10 @@ class Array(__Array, ComplexDataType):
 
     def __setattr__(self, key, value: CommonDataType):
         match key:
-            case 'TYPE' | 'values' as prop:                                         raise ValueError(F"don't support set {prop}")
-            case _:                                                                 super().__setattr__(key, value)
+            case 'TYPE' | 'values' as prop:
+                raise ValueError(F"don't support set {prop}")
+            case _:
+                super().__setattr__(key, value)
 
     def __getitem__(self, item: int) -> CommonDataType:
         """ get element by index """
@@ -1999,7 +2002,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
 
     @classmethod
     def parse(cls, value: str) -> Self:
-        return cls(bytearray(cls.from_str))
+        return cls(bytearray(cls.from_str(value)))
 
     def from_datetime(self, value: datetime.datetime) -> bytes:
         """ convert from build to DLMS datetime, weekday not set for uniquely datetime """
@@ -2199,7 +2202,7 @@ class Date(__DateTime, __Date, SimpleDataType):
 
     @classmethod
     def parse(cls, value: str) -> Self:
-        return cls(bytearray(cls.strptime))
+        return cls(bytearray(cls.strpdate(value)))
 
     def from_datetime(self, value: datetime.datetime) -> bytes:
         return bytes(((value.year >> 8) & 0xFF, value.year & 0xFF, value.month, value.day, value.weekday() + 1))

@@ -30,7 +30,7 @@ class RegisterMonitor(ic.COSEMInterfaceClasses):
                   ic.ICAElement("actions", Actions))
 
     def characteristics_init(self):
-        self.set_attr(2, None)
+        ...
 
     @property
     def thresholds(self) -> Thresholds:
