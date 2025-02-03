@@ -1999,7 +1999,7 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
 
     @classmethod
     def parse(cls, value: str) -> Self:
-        return cls(bytearray(self.from_str))
+        return cls(bytearray(cls.from_str))
 
     def from_datetime(self, value: datetime.datetime) -> bytes:
         """ convert from build to DLMS datetime, weekday not set for uniquely datetime """
