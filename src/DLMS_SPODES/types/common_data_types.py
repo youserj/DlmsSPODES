@@ -837,9 +837,13 @@ class __Date(ABC):
             value[0:2].replace(b'\xff\xff', b'\x01\x00') + \
             value[2:4].replace(b'\xff', b'\x01').replace(b'\xfe', b'\x01').replace(b'\xfd', b'\x01') + \
             value[4:5].replace(b'\xff', b'\x01')
-        if datetime.date(year_highbyte * 256 + year_lowbyte, month, day_of_month).weekday() != \
-                day_of_week - 1 and value[4:] != b'\xff' and value[0:2] != b'\xff\xff' and \
-                value[2:3] not in b'\xfd\xfe\xff' and value[2:3] not in b'\xfd\xfe\xff':
+        if (
+            datetime.date(year_highbyte * 256 + year_lowbyte, month, day_of_month).weekday() != day_of_week - 1
+            and value[4:] != b'\xff'
+            and value[0:2] != b'\xff\xff'
+            and value[2:3] not in b'\xfd\xfe\xff'
+            and value[3:4] not in b'\xfd\xfe\xff'
+        ):
             raise ValidationError(F"in Date got <week day: {value[4]}, not corresponding with other data")
 
     @property
