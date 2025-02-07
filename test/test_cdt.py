@@ -7,6 +7,7 @@ from src.DLMS_SPODES.cosem_interface_classes import ic, collection
 from src.DLMS_SPODES.types import cdt, cst, ut, implementations as impl, choices
 from src.DLMS_SPODES import relation_to_OBIS, enums
 from src.DLMS_SPODES.cosem_interface_classes.collection import Collection
+from src.DLMS_SPODES.cosem_interface_classes.arbitrator import WeightingsTable
 
 
 class TestType(unittest.TestCase):
@@ -180,6 +181,9 @@ class TestType(unittest.TestCase):
         self.assertEqual(value.encoding, b'\x01\x03\x11\x04\x11\x05\x11\x06', "check set build-in")
         a = obj.value.get_copy([1, 3])
         print(a)
+        data = bytes.fromhex("01 10 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01 01 02 12 00 20 12 00 01")
+        value = WeightingsTable(data)
+        print(value)
 
     def test_get_copy(self):
         value = cdt.Unsigned(3)

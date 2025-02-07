@@ -1138,19 +1138,20 @@ class Array(__Array, ComplexDataType):
         """ append element to end """
         if element is None:
             element = self.new_element()
-        elif hasattr(self.TYPE, "TYPE"):  # for CHOICE
+        elif hasattr(self.TYPE, "TYPE") and not hasattr(self.TYPE, "TAG"):  # for CHOICE
             self.__dict__['TYPE'] = self.TYPE.ELEMENTS[element.encoding[0]].TYPE
         else:
             element = self.TYPE(element)
         if self.unique and element in self.values:  # TODO: remove after full implement append_validate (see below)
             raise ValueError(F"element {element} already exist in {self.__class__.__name__}")
-        self.append_validate(element)
+        # self.append_validate(element)
         self.values.append(element)
 
     def new_element(self) -> CommonDataType:
         """for override elements validator if it consist ID's. """
         return self.TYPE()
 
+    # todo: remove. make simple validate
     def append_validate(self, element: CommonDataType):
         """validate before append last value. In override here need insert <raise> in some events and register callbacks"""
 

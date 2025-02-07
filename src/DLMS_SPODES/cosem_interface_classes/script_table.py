@@ -31,7 +31,17 @@ class Scripts(cdt.Array):
     """ Specifies the lists of actions """
     TYPE = Script
     __get_item__: Script
-    
+
+    def new_element(self) -> Script:
+        """return default Script with vacant script_identifier"""
+        # todo: make common function by ID element
+        el: Script
+        day_ids: list[int] = [int(el.script_identifier) for el in self.values]
+        for i in range(0xffff):
+            if i not in day_ids:
+                return Script((i, None))
+        raise ValueError(F"in {self} all <script_identifier> is busy")
+
 
 class ScriptTable(ic.COSEMInterfaceClasses):
     """Script table"""
