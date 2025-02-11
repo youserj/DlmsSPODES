@@ -1215,7 +1215,7 @@ class Structure(ComplexDataType):
     """ The elements of the structure are defined in the Attribute or Method description section of a COSEM IC specification """
     TAG = TAG(b'\x02')
     ELEMENTS: tuple[StructElement, ...]
-    values: list[CommonDataType, ...]
+    values: list[CommonDataType]
     DEFAULT: bytes = None
 
     def __init__(self, value: list[CommonDataType | list] | bytes | tuple | None | bytearray | Self = None):
@@ -2120,8 +2120,8 @@ class DateTime(__DateTime, __Date, __Time, SimpleDataType):
                     if res < point:
                         continue
                     elif (
-                        self.weekday is not None
-                        and self.weekday != (res.weekday() + 1)
+                            self.weekday!=0xff
+                            and self.weekday != (res.weekday() + 1)
                     ):
                         continue
                     else:
@@ -2284,6 +2284,23 @@ class Time(__DateTime, __Time, SimpleDataType):
                         else:
                             return l_point
         return None
+
+    @classmethod
+    def from_float(cls, value: float, second: bool = False, hundredths: bool = False) -> Self:
+        """new instance from part of day"""
+        if 0 <= value < 1:
+            res = bytearray(4)
+            div, res[3] = divmod(int(value * 8640000), 100)
+            div, res[2] = divmod(div, 60)
+            div, res[1] = divmod(div, 60)
+            div, res[0] = divmod(div, 24)
+            if not second:
+                res[2] = res[3] = 0xff
+            elif not hundredths:
+                res[3] = 0xff
+            return cls(res)
+        else:
+            raise ValueError(F"for Time float: got {value=}, expected 0..0.999999")
 
 
 __types: dict[bytes, Type[CommonDataType]] = {

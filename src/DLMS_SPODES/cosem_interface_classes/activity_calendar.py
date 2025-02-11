@@ -32,6 +32,35 @@ class SeasonProfile(cdt.Array):
         else:
             """validate OK"""
 
+    def sort(self, date_time: cdt.DateTime) -> Self:
+        """sort by date-time
+        :return now Season + next Seasons"""
+        s: Season
+        d_t = date_time.to_datetime()
+        l = list()
+        """left datetime"""
+        r = list()
+        """right datetime"""
+        for i, s in enumerate(self):
+            if (el := s.season_start.get_left_nearest_datetime(d_t)) is not None:
+                l.append((i, el))
+            if (el := s.season_start.get_right_nearest_datetime(d_t)) is not None:
+                r.append((i, el))
+        l.sort(key=lambda it: it[1])
+        r.sort(key=lambda it: it[1])
+        now = l[-1][0]
+        indexes: list[int] = [now]
+        for el in r:
+            if el[0] == now:
+                continue
+            else:
+                indexes.append(el[0])
+        sorted_data = self.__class__()
+        for i in indexes:
+            sorted_data.append(self[i])
+        return sorted_data
+
+
 
 class WeekProfile(cdt.Structure):
     """ For each week_profile, the day_profile for every day of a week is identified. """

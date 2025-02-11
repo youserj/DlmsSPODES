@@ -49,6 +49,7 @@ class TestType(unittest.TestCase):
         t = cdt.Time("10:01")
         self.assertEqual(t.to_second(), 14460)
         self.assertRaises(OutOfRange, t.set_second, 60)
+        self.assertEqual(cdt.Time.from_float(.5), cdt.Time.parse("12:00"))
 
     def test_Date(self):
         data = cdt.Date("01.01.2000")
