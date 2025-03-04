@@ -6,7 +6,7 @@ from struct import pack
 from dataclasses import dataclass
 from itertools import count, chain
 from functools import reduce, cached_property, lru_cache
-from typing import TypeAlias, Iterator, Type, Self, Callable, Literal, Iterable
+from typing import TypeAlias, Iterator, Type, Self, Callable, Literal, Iterable, Optional
 import logging
 from semver import Version as SemVer
 from StructResult import Result
@@ -61,6 +61,8 @@ from . import obis as o, ln_pattern
 from .. import pdu_enums as pdu
 from ..config_parser import config, get_values, get_message
 from ..obis import media_id
+from .parameter import Parameter
+from typing_extensions import deprecated
 
 
 class CollectionMapError(exc.DLMSException):
@@ -74,20 +76,6 @@ _report = {
 }
 if toml_val := get_values("DLMS", "report"):
     _report.update(toml_val)
-
-
-class LIP(bytes):
-    """Logical_name + Attr_index + nested_Parameter"""  # todo: make nested_parameter with expanded index (as length in CDT)
-
-    @property
-    def ln(self) -> bytes:
-        """:return logical_name"""
-        return self[:6]
-
-    @property
-    def i(self) -> int:
-        """:return <attribute index>"""
-        return self[6]
 
 
 LNContaining: TypeAlias = bytes | str | cst.LogicalName | cdt.Structure | ut.CosemObjectInstanceId | ut.CosemAttributeDescriptor | ut.CosemAttributeDescriptorWithSelection \
@@ -681,7 +669,7 @@ class Collection:
     __dlms_ver: int | None
     __country: CountrySpecificIdentifiers | None
     __country_ver: ParameterValue | None
-    __container: dict[bytes, InterfaceClass]
+    __objs: dict[bytes, InterfaceClass]
     __const_objs: int
     spec_map: str
 
@@ -696,7 +684,7 @@ class Collection:
         self.__country_ver = cntr_ver
         """country version specification"""
         self.spec_map = "DLMS_6"
-        self.__container = dict()
+        self.__objs = dict()
         """ all DLMS objects container with obis key """
         self.add(
             class_id=ClassID.DATA,
@@ -775,9 +763,9 @@ class Collection:
         err: list[Exception] = list()
         max_ass: AssociationLN | None = None
         """more full association"""  # todo: move to collection(from_xml)
-        for obj in self.__container.values():
+        for obj in self.__objs.values():
             new_obj: InterfaceClass = obj.__class__(obj.logical_name)
-            new_collection.__container[obj.logical_name.contents] = new_obj
+            new_collection.__objs[obj.logical_name.contents] = new_obj
             new_obj.collection = new_collection
             if obj.CLASS_ID == ClassID.ASSOCIATION_LN:
                 obj: AssociationLN
@@ -843,11 +831,11 @@ class Collection:
                 """success validation"""
 
     def __str__(self):
-        return F"[{len(self.__container)}] DLMS version: {self.__dlms_ver}, country: {self.__country}, country specific version: {self.__country_ver}, " \
+        return F"[{len(self.__objs)}] DLMS version: {self.__dlms_ver}, country: {self.__country}, country specific version: {self.__country_ver}, " \
                F"id: {self.id}, uses specification: {self.spec_map}"
 
     def __iter__(self) -> Iterator[ic.COSEMInterfaceClasses]:
-        return iter(self.__container.values())
+        return iter(self.__objs.values())
 
 
     def get_spec(self) -> str:
@@ -873,7 +861,7 @@ class Collection:
                        version: cdt.Unsigned | None,
                        logical_name: cst.LogicalName) -> InterfaceClass:
         """ like as add method with check for missing """
-        if (res := self.__container.get(logical_name.contents)) is None:
+        if (res := self.__objs.get(logical_name.contents)) is None:
             return self.add(
                 class_id=class_id,
                 version=version,
@@ -883,13 +871,17 @@ class Collection:
 
     def get(self, obis: bytes) -> InterfaceClass | None:
         """ get object, return None if it absence """
-        return self.__container.get(obis, None)
+        return self.__objs.get(obis, None)
+
+    def par2obj(self, par: Parameter) -> InterfaceClass:
+        """return: DLMSObject"""
+        return self.__objs.get(par.ln, exc.NoObject)  # todo: maybe make ic.NoObject
 
     def values(self) -> tuple[InterfaceClass]:
-        return tuple(self.__container.values())
+        return tuple(self.__objs.values())
 
     def __len__(self):
-        return len(self.__container)
+        return len(self.__objs)
 
     def add(self, class_id: ut.CosemClassId,
             version: cdt.Unsigned | None,
@@ -902,7 +894,7 @@ class Collection:
                 ln=logical_name,
                 func_map=func_maps[self.spec_map])(logical_name)
             new_object.collection = self
-            self.__container[logical_name.contents] = new_object
+            self.__objs[logical_name.contents] = new_object
             logger.info(F'Create {new_object}')
             return new_object
         except ValueError as e:
@@ -913,7 +905,7 @@ class Collection:
     def get_class_version(self) -> dict[ut.CosemClassId, cdt.Unsigned]:
         """use for check all class version by unique"""
         ret: dict[ut.CosemClassId, cdt.Unsigned] = dict()
-        for obj in self.__container.values():
+        for obj in self.__objs.values():
             if ver := ret.get(obj.CLASS_ID):
                 if obj.VERSION != ver:
                     raise ValueError(F"for {obj.CLASS_ID=} exist several versions: {obj.VERSION}, {ver} in one collection")
@@ -943,11 +935,11 @@ class Collection:
     @lru_cache(maxsize=100)  # amount of all ClassID
     def find_version(self, class_id: ut.CosemClassId) -> cdt.Unsigned:
         """use for add new object from profile_generic if absence in object list"""
-        return next(filter(lambda obj: obj.CLASS_ID == class_id, self.__container.values())).VERSION
+        return next(filter(lambda obj: obj.CLASS_ID == class_id, self.__objs.values())).VERSION
 
     def is_in_collection(self, value: LNContaining) -> bool:
         obis: bytes = get_ln_contents(value)
-        return False if self.__container.get(obis) is None else True
+        return False if self.__objs.get(obis) is None else True
 
     def get_object(self, value: LNContaining) -> InterfaceClass:
         """ return object from obis<string> or raise exception if it absence """
@@ -1003,7 +995,7 @@ class Collection:
         finally:
             return rep
 
-    # @lru_cache(20000)
+    @deprecated("use <par2su>")
     def get_scaler_unit(self,
                         obj: ic.COSEMInterfaceClasses,
                         par: bytes
@@ -1038,11 +1030,36 @@ class Collection:
             case _:
                 return None
 
-    def lip2su(self, lip: LIP) -> cdt.ScalUnitType | None:
-        """convert LIP to ScalerUnit if possible"""
-        return self.get_scaler_unit(
-            obj=self.__get_object(lip.ln),
-            par=lip[6:])
+    @lru_cache(20000)
+    def par2su(self, par: Parameter) -> Optional[cdt.ScalUnitType]:
+        """convert Parameter -> Optional[ScalerUnit],
+        raise: NoObject, EmptyAttribute"""
+        match (obj := self.par2obj(par)).CLASS_ID, par.i:
+            case (exc.NoObject, _):
+                raise obj
+            case (ClassID.REGISTER | ClassID.EXT_REGISTER, 2) | (ClassID.DEMAND_REGISTER, 2 | 3):
+                obj: Register | DemandRegister
+                if (s_u := obj.scaler_unit) is None:
+                    raise ic.EmptyAttribute(obj.logical_name, 3)
+                else:
+                    if (s := cdt.get_unit_scaler(s_u.unit.contents)) != 0:
+                        s_u = s_u.copy()
+                        s_u.scaler.set(int(s_u.scaler)-s)
+                    return s_u
+            case ClassID.LIMITER, 3 | 4 | 5:
+                obj: Limiter
+                if m_v := obj.monitored_value:
+                    return self.par2su(Parameter(m_v.logical_name.contents).set_i(int(m_v.attribute_index)))  # recursion 1 level
+                else:
+                    raise ic.EmptyAttribute(obj.logical_name, 2)
+            case ClassID.REGISTER_MONITOR, 2, _:
+                obj: RegisterMonitor
+                if (m_v := obj.monitored_value) is None:
+                    raise ic.EmptyAttribute(obj.logical_name, 3)
+                else:
+                    return self.par2su(Parameter(m_v.logical_name.contents).set_i(int(m_v.attribute_index)))  # recursion 1 level
+            case _:
+                return None
 
     def filter_by_ass(self, ass_id: int) -> list[InterfaceClass]:
         """return only association objects"""
@@ -1075,11 +1092,11 @@ class Collection:
             raise exc.NoObject(F"not found at least one DLMS Objects from collection with {values=}")
 
     def get_objects_by_class_id(self, value: ut.CosemClassId) -> list[InterfaceClass]:
-        return list(filter(lambda obj: obj.CLASS_ID == value, self.__container.values()))
+        return list(filter(lambda obj: obj.CLASS_ID == value, self.__objs.values()))
 
     def get_objects_descriptions(self) -> list[tuple[cst.LogicalName, cdt.LongUnsigned, cdt.Unsigned]]:
         """ return container of objects for get device clone """
-        return list(map(lambda obj: (obj.logical_name, obj.CLASS_ID, obj.VERSION), self.__container.values()))
+        return list(map(lambda obj: (obj.logical_name, obj.CLASS_ID, obj.VERSION), self.__objs.values()))
 
     def get_writable_attr(self) -> UsedAttributes:
         """return all writable {obj.ln: {attribute_index}}"""
@@ -1145,14 +1162,14 @@ class Collection:
         """ change Association version with clear attributes """
         logger.warning(F'Attention. ALL Association attributes will to default')
         for ass in self.get_objects_by_class_id(ut.CosemClassId(15)):
-            self.__container.pop(ass.logical_name.contents)
+            self.__objs.pop(ass.logical_name.contents)
             self.add(
                 class_id=ut.CosemClassId(15),
                 version=version,
                 logical_name=ass.logical_name)
 
     def __get_object(self, obis: bytes) -> InterfaceClass:
-        if (obj := self.__container.get(obis)) is None:
+        if (obj := self.__objs.get(obis)) is None:
             logical_name = cst.LogicalName(bytearray(obis))
             raise exc.NoObject(F"{get_name(logical_name)}:{logical_name} is absence")
         else:

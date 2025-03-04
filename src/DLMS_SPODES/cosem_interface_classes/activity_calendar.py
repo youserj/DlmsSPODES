@@ -1,9 +1,7 @@
 from typing_extensions import deprecated
-import datetime
 from typing import Self
-from . import special_days_table as sdt
 from .__class_init__ import *
-from ..types.implementations import integers
+from ..types.implementations import integers, octet_string
 
 
 class Season(cdt.Structure):
@@ -59,7 +57,6 @@ class SeasonProfile(cdt.Array):
         for i in indexes:
             sorted_data.append(self[i])
         return sorted_data
-
 
 
 class WeekProfile(cdt.Structure):
@@ -160,11 +157,11 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
     """DLMS UA 1000-1 Ed. 14 4.5.5 Activity calendar"""
     CLASS_ID = ClassID.ACTIVITY_CALENDAR
     VERSION = Version.V0
-    A_ELEMENTS = (ic.ICAElement("calendar_name_active", cdt.OctetString),
+    A_ELEMENTS = (ic.ICAElement("calendar_name_active", octet_string.ID),
                   ic.ICAElement("season_profile_active", SeasonProfile),
                   ic.ICAElement("week_profile_table_active", WeekProfileTable),
                   ic.ICAElement("day_profile_table_active", DayProfileTable),
-                  ic.ICAElement("calendar_name_passive", cdt.OctetString),
+                  ic.ICAElement("calendar_name_passive", octet_string.ID),
                   ic.ICAElement("season_profile_passive", SeasonProfile),
                   ic.ICAElement("week_profile_table_passive", WeekProfileTable),
                   ic.ICAElement("day_profile_table_passive", DayProfileTable),
@@ -184,7 +181,7 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
         self.set_attr(ai.SEASON_PROFILE_PASSIVE, None)
 
     @property
-    def calendar_name_active(self) -> cdt.OctetString:
+    def calendar_name_active(self) -> octet_string.ID:
         return self.get_attr(2)
 
     @property
@@ -200,7 +197,7 @@ class ActivityCalendar(ic.COSEMInterfaceClasses):
         return self.get_attr(5)
 
     @property
-    def calendar_name_passive(self) -> cdt.OctetString:
+    def calendar_name_passive(self) -> octet_string.ID:
         return self.get_attr(6)
 
     @property

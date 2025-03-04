@@ -76,14 +76,6 @@ class ICAElement(ICElement):
             selective_access=self.selective_access)
 
 
-def get_type_name(value: cdt.CommonDataType | Type[cdt.CommonDataType]) -> str:
-    """type name from type or instance of CDT with length and constant value"""
-    if isinstance(value, ut.CHOICE):
-        return value.NAME
-    else:
-        return cdt.get_type_name(value)
-
-
 @dataclasses.dataclass(frozen=True)
 class ICMElement(ICElement):
     DATA_TYPE: Type[cdt.CommonDataType]

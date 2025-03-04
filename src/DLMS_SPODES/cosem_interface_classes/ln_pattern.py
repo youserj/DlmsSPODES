@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Self, Literal
-from ..Values.EN.relation_to_obis_names import INSTANTANEOUS_VALUE
-from ..types import common_data_types as cdt, cosem_service_types as cst, useful_types as ut
+from ..types import cst
 
 
 type ObisGroup = int | set[int]
@@ -125,24 +124,41 @@ OTHER_MEDIA = LNPattern.parse("15")
 BILLING_PERIOD_VALUES_RESET_COUNTER_ENTRIES = LNPatterns((
     LNPattern.parse("0.b.0.1.(0,2,3,5).f"),
     LNPattern.parse("0.b.0.1.(1,4).255")))
-ACTIVE_FIRMWARE_IDENTIFIER = LNPattern.parse("0.b.0.2.0.255")
-ACTIVE_FIRMWARE_VERSION = LNPattern.parse("0.b.0.2.1.255")
-ACTIVE_FIRMWARE_SIGNATURE = LNPattern.parse("0.b.0.2.8.255")
 PROGRAM_ENTRIES = LNPatterns((
-    ACTIVE_FIRMWARE_IDENTIFIER,
-    ACTIVE_FIRMWARE_VERSION,
-    ACTIVE_FIRMWARE_SIGNATURE))
+    ACTIVE_FIRMWARE_IDENTIFIER := LNPattern.parse("0.b.0.2.0.255"),
+    ACTIVE_FIRMWARE_VERSION := LNPattern.parse("0.b.0.2.1.255"),
+    ACTIVE_FIRMWARE_SIGNATURE := LNPattern.parse("0.b.0.2.8.255")
+))
 TIME_ENTRIES = LNPattern.parse("0.b.0.9.(1,2).255")
+CLOCK_OBJECTS = LNPatterns((
+    CLOCK := LNPattern.parse("0.b.1.0.e.255"),
+    UNIX_CLOCK := LNPattern.parse("0.b.1.1.e.255"),
+    MICROSECONDS_CLOCK := LNPattern.parse("0.b.1.2.e.255"),
+    MINUTES_CLOCK := LNPattern.parse("0.b.1.3.e.255"),
+    HOURS_CLOCK := LNPattern.parse("0.b.1.4.e.255"),
+    DAYS_CLOCK := LNPattern.parse("0.b.1.5.e.255"),
+    WEEKS_CLOCK := LNPattern.parse("0.b.1.6.e.255")
+))
 TARIFFICATION_SCRIPT_TABLE = LNPattern.parse("0.b.10.0.100.255")
+PUSH_SCRIPT_TABLE = LNPattern.parse("0.b.10.0.108.255")
+SINGLE_ACTION_SCHEDULE = LNPatterns((
+    END_OF_BILLING_PERIOD_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.0.255"),
+    DISCONNECT_CONTROL_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.1.255"),
+    IMAGE_ACTIVATION_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.2.255"),
+    OUTPUT_CONTROL_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.3.255"),
+    PUSH_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.4.255"),
+    LOAD_PROFILE_CONTROL_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.5.255"),
+    M_BUS_PROFILE_CONTROL_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.6.255"),
+    FUNCTION_CONTROL_SINGLE_ACTION_SCHEDULE := LNPattern.parse("0.b.15.0.7.255")
+))
 ACTIVITY_CALENDAR = LNPattern.parse("0.b.13.0.e.255")
 ASSOCIATION = LNPattern.parse("0.0.40.0.e.255")  # 6_2_33
 NON_CURRENT_ASSOCIATION = LNPattern.parse("0.0.40.0.(1-255).255")  # MY
 SAP_ASSIGNMENT = LNPattern.parse("0.0.41.0.0.255")  # 6.2.34
 COSEM_logical_device_name = LNPattern.parse("0.0.42.0.0.255")  # 6.2.35
-INVOCATION_COUNTER = LNPattern.parse("0.b.43.1.e.255")  # 6.2.36
 INFORMATION_SECURITY_RELATED = LNPatterns((
     LNPattern.parse("0.0.43.(0,2).e.255"),
-    INVOCATION_COUNTER
+    INVOCATION_COUNTER := LNPattern.parse("0.b.43.1.e.255")  # 6.2.36
 ))
 IMAGE_TRANSFER = LNPattern.parse("0.b.44.0.e.255")  # 6.2.37
 FUNCTION_CONTROL = LNPattern.parse("0.b.44.1.e.255")  # 6.2.38

@@ -15,6 +15,10 @@ class TestType(unittest.TestCase):
         value = cdt.TAG(b'\x01')
         print(value)
 
+    def test_get_length_and_pdu(self):
+        l, pdu = cdt.get_length_and_pdu(b'\x00\x00')
+        print(l, pdu)
+
     def test_encode_length(self):
         self.assertEqual(encode_length(1), b'\x01')
         self.assertEqual(encode_length(0x7e), b'\x7e')
@@ -53,8 +57,10 @@ class TestType(unittest.TestCase):
 
     def test_Date(self):
         data = cdt.Date("01.01.2000")
+        data.set_weekday(1)
         self.assertRaises(ValidationError, data.set_weekday, 1)
         self.assertRaises(OutOfRange, data.set_weekday, 8)
+        print(data)
 
     def test_DateTime(self):
         data: cdt.DateTime

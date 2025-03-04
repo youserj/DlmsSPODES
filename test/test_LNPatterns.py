@@ -10,8 +10,6 @@ from src.DLMS_SPODES.obis import media_id
 from src.DLMS_SPODES.exceptions import NeedUpdate, NoObject
 
 
-
-
 class TestType(unittest.TestCase):
 
     @staticmethod
@@ -25,12 +23,15 @@ class TestType(unittest.TestCase):
     def test_equal(self):
         p = self.get_pattern()
         self.assertEqual(p, cst.LogicalName.from_obis("0.2.0.1.0.255"))
-        self.assertNotEqual(p, cst.LogicalName.from_obis("0.0.0.1.0.255"))
+        self.assertNotEqual(p, cst.LogicalName.from_obis("1.0.0.1.0.255"))
 
     def test_country(self):
         print(ln_pattern.COUNTRY_SPECIFIC_IDENTIFIERS)
 
     def test_1(self):
         reduce_ln = ln_pattern.LNPattern.parse("0.0.(40,42).0.0.255")
-        print(cst.LogicalName.from_obis("0.0.40.0.0.255") in reduce_ln)
+        print(reduce_ln == cst.LogicalName.from_obis("0.0.40.0.0.255"))
 
+    def test_convert(self):
+        clock_pat = ln_pattern.CLOCK
+        print(clock_pat)
